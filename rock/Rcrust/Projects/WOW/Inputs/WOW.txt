@@ -1,0 +1,98 @@
+###############
+#
+#   Rcrust input file
+#
+###############
+# Location of project files
+working_file<-"WOW"
+projects_directory<-"/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects"
+
+###############
+#
+#   Size data
+#
+###############
+# number of points in x and y directions
+x_n<-1
+y_n<-1
+
+###############
+#
+#   PT data
+#
+###############
+pt_def<-"input"                         #input,file
+pt_definitions<-list("{1;1}_{1;1}"=c("1.6722908941125727+0*y_i","743.6357336152847+0*x_i"))
+
+###############
+#
+#   Bulk composition data 
+#
+###############
+comp_transformations<-c(list("O2_O"=c("0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.50,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00"),"H2_H"=c("0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.50,0.00,0.00,0.00,0.00,0.00,0.00,0.00"),"S2_S"=c("0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.50,0.00,0.00,0.00"),"N2_N"=c("0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.50,0.00")))
+bulk_def<-"input"                         #input,file
+major_elements<-c("H","C","Mg","Al","Si","S","Ca","Fe","O","Na","N")
+set_oxygen_fugacity<-FALSE
+calculate_traces<-FALSE
+apply_trace_correction<-"None"
+kd_file<-"yak.kd"
+trace_elements<-c("")
+bulk_definitions<-c(list("{1;1}_{1;1}"=c("0.0005264947294123156","0.0","34.72409010035508","0.0","16.514634514270686","0.0","0.0","5.352654681750046","43.40809420889477","0.0","0.0","100")))
+bulk_file<-""
+
+###############
+#
+#   Phase addition
+#
+###############
+ph_add<-FALSE
+ph_add_definitions<-c("")
+
+###############
+#
+#   Phase extraction
+#
+###############
+ph_extr<-FALSE
+reequilibrate_steps<-FALSE
+ph_extr_definitions<-c("")
+
+###############
+#
+#   Component packet
+#
+###############
+component_packet<-FALSE
+cp_components<-c("")
+cp_phases_<-c("")
+
+###############
+#
+#   Modelling Options
+#
+###############
+thermodynamic_data_file<-"DEW17HP622ver_elements_687_20191107.dat"
+solution_models_file<-"solution_model_690.dat"
+meemum_path<-"meemum"
+perplex_option_file<-"perplex_option_687_20191118_v15.dat"
+use_sol_models<-c("A-phase","Atg(PN)","B","cAmph(G)","Chl(W)","COH-Fluid","Cpx(HGP)","Crd(HGP)","Do(HP)","Ep(HP11)","Fsp(C1)","Gt(HGP)","Hpx(H)","M(HP)","melt(HGP)","Mica(W)","O(HGP)","Opx(HGP)","Pl(I1,HP)","Pu","Ring(H)","Sp(JH)","Stlp","T")
+saturated_components<-""
+saturated_phase_components<-""
+independent_potential_fugacity_activity<-""
+exclude_phases<-c("faTL","foTL","fa8L","fo8L","fojL","fajL","qjL","q8L","hmjL","sil8L","ctjL","dijL","jdjL","h2oL","ma","rieb","acm_dqf","mic","wa","stv")
+calculate_activities<-FALSE
+phases_to_rename<-c("")
+G_pure_phases<-""
+print_meem<-FALSE
+export_meemum_output<-TRUE
+end_of_calc<-"Return to Interface"
+
+###############
+#
+#   Output Options
+#
+###############
+phase_aliases<-""
+PAM_compilation<-""
+compile_PAM<-""
+
