@@ -4,6 +4,7 @@ class Decay:
     ### CONSTANTS
     YR = 3.1536E7   #(seconds)
     LN2 = np.log(2)
+    SSAGE=4.571*10**9*YR
 
     # Heat Production W/kg
     H0U238  = 94.65E-6
@@ -42,6 +43,14 @@ class Decay:
                   'Al26':H0AL,
                   'Mn53':H0MN,
                   'Ca41':H0CA})
+
+    def calcOriginAbund(abund,el):
+        if el not in Decay.LAs:
+            print("Element "+el+" not in radiosotope list.")
+        LAel=Decay.LAs[el]
+        HLs=Decay.SSAGE/LAel
+        return abund*(2**HLs)
+        
 
     def calcHeatProd(el,conc, cp, dt):
         return (Decay.H0s[el]*conc/cp*dt)

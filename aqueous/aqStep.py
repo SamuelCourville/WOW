@@ -8,6 +8,31 @@ class aqStep:
             return runEq36(temp, press, waterDict, rockDict,WR)
         return rockDict,waterDict,heat
 
+    def callAqEquil(waterDict,press,temp):
+        heat=0
+        precip, aqSpec, heat = runEq3(temp,press,waterDict)
+        return precip, aqSpec, heat
+
+
+def runEq3(Temperature,Pressure,w):
+    mH2  = 0.01 
+    mCl  = 0.01914 
+    ST=Temperature
+    r={'Q':0,'S':0,'C':0,'K':0,'N':0,'L':0,'B':0,'F':0,'P':0,'Mn':0}
+    updateRock(r['Q'],r['S'],r['C'],r['K'],r['N'],r['L'],r['B'],r['F'],r['P'],r['Mn'],w['CO2'],w['CO'],w['NH3'],0,0,w['CH4'])
+    updateAQ(mH2,mCl)
+    runModel(Temperature,Pressure)
+    N,Xi = numberOfSteps()
+    minerals = extractProduct(N)
+    Aqs = extractAq(N)
+    Fugs = extractFug(N)
+    endAq = extractEnd(Aqs)
+    endMin = extractEnd(minerals)
+    endFugs=extractEnd(Fugs)
+    pH =extractpH()
+    heat=1
+    return endMin, endAq, heat
+
 
 def runEq36(Temperature,Pressure,water,rockFrac, WR):
    

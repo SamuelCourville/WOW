@@ -2,11 +2,21 @@ import os
 import rpy2.robjects as robjects
 import numpy as np
 
+#codeDir = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/"
+codeDir = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/code/"
+inputDir="/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects/WOW/Inputs/WOW.txt"
+#inputDir="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
+mainScript="/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/code/main.r"
+#mainScript="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/main.r"
+rockEquilDir="/Users/samuelcourville/Documents/JPL/combinedModel/rock"
+fileRData = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects/WOW/WOW.RData"
+#fileRData = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/WOW.RData"
+
 def rockEquil(Comp,P,T):
-    #fN="/Users/samuelcourville/Documents/JPL/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
-    fN=/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt
+    fN=inputDir
+    #fN="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
     RCrustProjName="WOW"
-    Pc = P/100000/1000 #conert to kbar
+    Pc = P/100000/1000 #convert to kbar
     sumComp = 0
     for key in Comp:    
         sumComp += Comp[key]
@@ -18,9 +28,11 @@ def rockEquil(Comp,P,T):
     spec_list = list(specs)
     specAr = np.array(spec_list)
     success=0
+    E=0
     if "Bulk_rs" in specs:
         success=1
         indx=specs.index("Bulk_rs")
+        E = ddicts[indx]['Enthalpy (J/kg)']
         newCompDict=copy_dict_entries(ddicts[indx],Comp.keys())
         for key in newCompDict:    
             newCompDict[key] *= (1/100)
@@ -28,7 +40,7 @@ def rockEquil(Comp,P,T):
         newCompDict={}
         print("Perplex failed on input:")
         print(Comp)
-    return newCompDict, ddicts, specAr, success
+    return newCompDict, ddicts, specAr, E, success
 
 def copy_dict_entries(original_dict, keys_to_copy):
     new_dict = {}
@@ -40,9 +52,10 @@ def copy_dict_entries(original_dict, keys_to_copy):
 
 
 def executeRCrust(pN):
-    os.chdir("/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/")
-    status = os.system("Rscript /Users/samuelcourville/Documents/JPL/combinedModel/perplex/Rcrust/code/main.r "+pN+" >/dev/null")
-    os.chdir("/Users/samuelcourville/Documents/JPL/combinedModel/rock")
+    #os.chdir("/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/")
+    os.chdir(codeDir)
+    status = os.system("Rscript "+mainScript+" "+pN+" >/dev/null")
+    os.chdir(rockEquilDir)
 
 def updateRCrustInput(fN,P,T,Comp):
     #line 16 and 17
@@ -92,8 +105,8 @@ def convert_float_matrix_to_dict(float_matrix, colnames,rownames):
 
 
 def extractRData():
-    fileRData = "/Users/samuelcourville/Documents/JPL/rock/Rcrust/Projects/WOW/WOW.RData"
-    dataDict = convert_rdata_list_to_dict(fileRData)
+    RDataLoc = fileRData
+    dataDict = convert_rdata_list_to_dict(RDataLoc)
     return dataDict
 
 

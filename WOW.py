@@ -25,12 +25,12 @@ class gridCell:
         self.Press=0
         self.Celltype = 0
         self.AqComp = dict()
+        self.AqSpec = dict()
         self.RIComp = dict()
         self.IceComp= dict()
         self.RockComp=dict()
         self.RockPhases=[]
         self.RockPhaseDat=[]
-        self.LastEquilTemp=0
         self.Top=0
         self.Bot=0
         self.Vol=0
@@ -44,6 +44,11 @@ class gridCell:
         self.Porosity=0
         self.TempStep=50
         self.lastEquil=0
+        self.lastEnthalpy=0
+        self.latentHeat=0
+        self.HtoAdd=0
+        self.doUpdate=0
+
         
     def cell_decay(self,dtime):
         for i in self.RIComp:
@@ -52,17 +57,30 @@ class gridCell:
     def cell_heat(self,dtime):
         DT = 0
         for i in self.RIComp:
-            #print(i)
             DT = DT + Decay.calcHeatProd(i, self.RIComp[i], self.Cp, dtime) #self.Vol, self.Cp, self.Dens)
-            #print(DT)
-        self.Temp = self.Temp+DT
+
+        if self.latentHeat>0:
+            self.latentHeat=self.latentHeat-(DT*self.Mass*self.Cp)
+            if self.latentHeat<0:
+                self.Temp = self.Temp-(self.latentHeat/self.Cp/self.Mass)
+                self.latentHeat=0
+        else:
+            self.Temp+=DT
         
-    def cell_equilibrate(self,k,perplex):
+    def cell_equilibrate(self,k,perplex,eq36):
         self.RockMass=self.getRockMass()
         self.IceMass=self.getIceMass()
         self.AqMass=self.getWaterMass()
         if self.Celltype==cellTypes.FLUID:
-            if callAqEquil(self.AqComp, self.IceComp, self.Press, self.Temp):
+            heat=callAqFreeze(self.AqComp, self.IceComp, self.Press, self.Temp)
+            if eq36:
+                #newComp,addH=aqStep.callAqEquil(self.AqComp, self.Press, self.Temp)
+                newPrecip,newAq,addH=aqStep.callAqEquil({'CH4':0.0,'NH3':1.0,'CO':0.0,'CO2':0.0}, self.Press, self.Temp)
+                self.AqSpec=newAq
+                #heat+=addH
+                self.doUpdate=0
+            if heat>0:
+                self.latentHeat=-heat
                 self.Celltype=cellTypes.ICE
         if self.Celltype==cellTypes.ICE:
             #print('here')
@@ -70,55 +88,53 @@ class gridCell:
             #callIceEquil(self.IceComp, self.AqComp, self.Press, self.Temp)
         if self.Celltype==cellTypes.ROCK and (self.Temp-self.lastEquil)>self.TempStep:
             if perplex:
-                #print(self.RockComp)
-                tempRC,tempRPD,tempRP,success=rockEquil(self.RockComp, self.Press, self.Temp)
+                tempRC,tempRPD,tempRP,E,success=rockEquil(self.RockComp, self.Press, self.Temp)
                 if success:
                     self.RockComp=tempRC
-                    #print(tempRC)
                     self.RockPhaseDat=tempRPD
                     self.RockPhases=tempRP
                     for key in self.RockComp:    
                         self.RockComp[key] *= self.RockMass #self.Mass-(self.getIceMass()+self.getWaterMass())
-                    self.lastEquilTemp=self.Temp
+                    if not self.lastEnthalpy==0:
+                        self.latentHeat+=(E-self.lastEnthalpy)*self.RockMass
+                        if self.latentHeat<0:
+                            self.HtoAdd=-self.latentHeat
+                            self.latentHeat=0
+                        self.lastEnthalpy=E
+                    self.lastEquil=self.Temp
+                    self.doUpdate=1
                 #print("perplexed")
-                #print(k)
-                #print(self.getRockMass())
-                #print(self.RockComp)
-                #print(self.RockMass)
-                #print(bob)
         if self.Celltype==cellTypes.UNDIFF:
             heat=0
             heat=callIceEquil(self.IceComp, self.AqComp, self.Press, self.Temp)
-            if heat==1:
+            if heat>0:
                 self.Celltype=cellTypes.MIXED
+                self.latentHeat=heat
+                self.lastEquil=0
         if self.Celltype==cellTypes.MIXED:
             self.RockComp, self.AqComp, heat = aqStep.callAqRockEquil(self.RockComp, self.AqComp, self.Press, self.Temp,10)
         #if self.Celltype==cellTypes.IGNORE:
         #    self.AqComp={"H2O":1}
+        return self.doUpdate
  
     def cell_updateProp(self):
-        RR=self.Temp-self.lastEquil
-        #print(RR)
-        if RR>self.TempStep:
+        #RR=self.Temp-self.lastEquil #Is this robust? If I add a step between equil and update, probably not.
+        if True: #self.doUpdate:
             self.TCond=LookupProps.calcThermalCond(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
             self.Cp = LookupProps.calcHeatCap(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
             self.Dens =LookupProps.calcDens(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
-            self.lastEquil=self.Temp
-        if self.Bot==-10:
-            print(self.Cp)
-            print(self.TCond)
-            print(self.Dens)
-            print(self.Temp)
-            print("      ")
+        if self.HtoAdd>0:
+            self.Temp+=self.HtoAdd/self.Cp/self.Mass
+            self.HtoAdd=0
         return
 
     def copy_cell(self,OldCell,time):
         self.Time=time
         self.Temp=OldCell.Temp
-        self.LastEquilTemp=OldCell.LastEquilTemp
         self.Press=OldCell.Press
         self.Celltype = OldCell.Celltype
         self.AqComp = OldCell.AqComp.copy()
+        self.AqSpec = OldCell.AqSpec.copy()
         self.RIComp = OldCell.RIComp.copy()
         self.IceComp= OldCell.IceComp.copy()
         self.RockComp=OldCell.RockComp.copy()
@@ -137,12 +153,22 @@ class gridCell:
         self.Porosity=OldCell.Porosity
         self.TempStep=OldCell.TempStep
         self.lastEquil=OldCell.lastEquil
+        self.latentHeat=OldCell.latentHeat
         
     def calc_vol(self):
         V1=4/3*np.pi*self.Top**3
         V2=4/3*np.pi*self.Bot**3
         self.Vol=V1-V2
     
+    def calc_thickness(self,Bot):
+        self.Bot=Bot 
+        V2=4/3*np.pi*self.Bot**3
+        self.Vol=self.Mass/self.Dens
+        V1=self.Vol+V2
+        T3 = V1/(4/3*np.pi)
+        self.Top=T3**(1/3)
+        return self.Top
+
     def calc_den_Mass(self):
         self.Mass=self.Vol*self.Dens
 
@@ -194,7 +220,7 @@ class gridCell:
             
 
 class Planet:    
-    def __init__(self,nr,startTime,endTime,Radius,maxnt):
+    def __init__(self,nr,startTime,endTime,Radius,maxnt,Tstep,Pstep):
         self.nr = nr
         self.nt = maxnt
         self.times=np.array([startTime])
@@ -204,10 +230,15 @@ class Planet:
         self.grid = [gridCell() for x in range(self.nr*self.nt)]
         self.grid = np.reshape(self.grid,[self.nt,self.nr])
         self.Radius = Radius
-        self.PressStep=1   
+        self.PressStep=Pstep   
         self.Mass=0
+        self.TempStep=Tstep
+        self.eq36=0
 
     def timeStep(self,k):
+        Neq36=0
+        Yeq36=self.eq36
+        self.eq36=0
         if k%100==0:
             print("Step "+str(k)+" out of "+str(self.nt))
             #print(self.Mass)
@@ -219,9 +250,11 @@ class Planet:
             if k==0:
                 self.grid[k,i].cell_decay(self.times[k])
             if i%self.PressStep == 0:
-                self.grid[k,i].cell_equilibrate(k,1)
+                Neq36=self.grid[k,i].cell_equilibrate(k,1,Yeq36)
             else:
-                self.grid[k,i].cell_equilibrate(k,0)
+                Neq36=self.grid[k,i].cell_equilibrate(k,0,Yeq36)
+            if Neq36:
+                self.eq36=Neq36
         
         self.copyRockComp(k)
         
@@ -249,7 +282,24 @@ class Planet:
         temp2, dtime = ThermalConduction.thermalCondStep(temp,Cp,Tcond,rho,Rs,k)
         self.times=np.append(self.times,self.times[k]+dtime)
         for i in range(0,self.nr):
-            self.grid[k,i].Temp=temp2[i]
+            dT=temp2[i]-self.grid[k,i].Temp
+            latentT=(self.grid[k,i].latentHeat/self.grid[k,i].Mass/self.grid[k,i].Cp)
+            # this logic can be simplified:
+            if dT>0:
+                if latentT>dT:
+                    self.grid[k,i].latentHeat=self.grid[k,i].latentHeat-(dT*self.grid[k,i].Mass*self.grid[k,i].Cp)
+                    dT=0
+                else:
+                    dT=dT-latentT
+                    self.grid[k,i].latentHeat=0
+            if dT<0 and latentT<0:
+                if latentT<dT:
+                    self.grid[k,i].latentHeat=self.grid[k,i].latentHeat-(dT*self.grid[k,i].Mass*self.grid[k,i].Cp)
+                    dT=0
+                else:
+                    dT=dT-latentT
+                    self.grid[k,i].latentHeat=0
+            self.grid[k,i].Temp=self.grid[k,i].Temp+dT
         
     def transportMaterial(self,time_step):
         topB=0
@@ -300,12 +350,15 @@ class Planet:
                         self.grid[k,i].RockComp[key]=self.grid[k,lastStep].RockComp[key]/sumC*self.grid[k,i].RockMass
         
     def updateBulk(self,time_step):
+        bot=0
         for i in range(0,self.nr):
+            bot=self.grid[time_step,i].calc_thickness(bot)
             self.grid[time_step,i].calc_vol()
             self.grid[time_step,i].calc_Mass()
         self.calc_press(time_step)
-        
-    def initialize_comp(self,initIceComp,initRockComp, initRIComp, initTemp, initRho, initK, initCp, tempstep, pressStep):
+       
+ 
+    def initialize_comp(self,initIceComp,initRockComp, initRIComp, initTemp, initRho, initK, initCp):
         self.grid[0,0].IceComp=initIceComp
         self.grid[0,0].RockComp=initRockComp
         self.grid[0,0].RIComp=initRIComp
@@ -313,8 +366,7 @@ class Planet:
         self.grid[0,0].Dens=initRho
         self.grid[0,0].TCond=initK
         self.grid[0,0].Cp=initCp
-        self.grid[0,0].TempStep=tempstep
-        self.PressStep=pressStep
+        self.grid[0,0].TempStep=self.TempStep
         self.boundTemp=initTemp
         for i in range(1,self.nr):
             self.grid[0,i].copy_cell(self.grid[0,0],self.times[0])
@@ -476,23 +528,36 @@ class Planet:
             sumM = sumM+self.grid[time_index][i].Mass
         return sumM
 
+
+
+######### User helper functions
+
+
+def calcOriginAbundance(abund,el):
+    return Decay.calcOriginAbund(abund,el)
+
+
+
 ######### To be omitted
 
 
-def callAqEquil(waterDict, iceDict, press, temp):
+def callAqFreeze(waterDict, iceDict, press, temp):
+    heat = 0
+    IceMeltHeat=334*1000 #J/kg
     if temp<273.15:
         if 'H2O' in waterDict:
             iceDict['H2O']=waterDict['H2O']
+            heat=waterDict["H2O"]*IceMeltHeat
             waterDict['H2O']=0
-            return 1
-    return 0
+    return heat
     
 def callIceEquil(IceDict, waterDict, press, temp):
     heat = 0
+    IceMeltHeat=334*1000 #J/kg
     if temp>273.15:
         waterDict["H2O"]=IceDict["H2O"]
         IceDict["H2O"]=0
-        heat=1
+        heat=waterDict["H2O"]*IceMeltHeat
     return heat
         
 

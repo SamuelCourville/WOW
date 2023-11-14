@@ -55,6 +55,7 @@ class matTrans:
         phaseDatCopy=[{}] * nR
         phasesCopy=[[]] * nR
         rockM=[0] * nR
+        rockM3=[0] * nR
         for i in range(nC):
             rockCopy[i]=dict()
             rockWeights[i]=dict()
@@ -68,6 +69,7 @@ class matTrans:
                     rockWeights[i][j]=grid[i].RockComp[j]/rockM[i]
                 else:
                     rockWeights[i][j]=0
+            rockM3[i]=rockM[i]
         for i in range(nC):
             cellM=grid[i].Mass
             missM=cellM-rockM[i]
@@ -107,7 +109,20 @@ class matTrans:
             #else:
             #    phasesCopy[i]=grid[i].RockPhases.copy()
             #    phaseDatCopy[i]=grid[i].RockPhaseDat.copy()
+
+            if rockM3[i]>0:
+                RIfact=rockM2[i]/rockM3[i]
+                for j in grid[i].RIComp:
+                    grid[i].RIComp[j]*=RIfact
+            elif rockM3[i]==0 and rockM2[i]>0:
+                for j in grid[i].RIComp:
+                    grid[i].RIComp[j]=grid[i-1].RIComp[j]
+            else:
+                for j in grid[i].RIComp:
+                    grid[i].RIComp[j]=0
+            
             grid[i].reclassify()
+                
         return rockCopy,phaseDatCopy,phasesCopy
 
 
