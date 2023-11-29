@@ -171,6 +171,7 @@ class matTrans:
             gridC.RockPhases=np.delete(gridC.RockPhases,ind)
             del gridC.RockPhaseDat[ind]
             #print(bob)
+            return True
         if "F_1_rs" in gridC.RockPhases:
             indP = np.where(gridC.RockPhases=='F_1_rs')
             ind = indP[0][0] # What is this garbage?
@@ -181,8 +182,10 @@ class matTrans:
             matTrans.removeRockEl(gridC,ind)
             gridC.RockPhases=np.delete(gridC.RockPhases,ind)
             del gridC.RockPhaseDat[ind]
+            return True
         if "F_2_rs" in gridC.RockPhases:
             print("found F_2, but no code to deal with it yet.")
+        return False
 
     def removeRockEl(gcell,ind):
         Els = ["H","C","Mg","Al","Si","S","Ca","Fe","O","Na","N"]

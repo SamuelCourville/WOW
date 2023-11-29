@@ -13,53 +13,87 @@ eq6_ex=eq36_dir+"eq6"
 eq36_db_dir="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq3_6/db/alphja39DBs/"
 
 eqFileLoc="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/"
-eq6file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6i"
-eq3file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.3i"
-eq6ofile="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6o"
-eq3pfile="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.3p"
+eq6master="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/master.6i"
+eq3master="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/master.3i"
+#eq6file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6i"
+#eq3file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.3i"
+#eq6ofile="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6o"
+#eq3pfile="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.3p"
 
 
 ctx = decimal.Context()
 ctx.prec = 10
 
-def updateTemp6i(temp):
-    file6i = eq6file
+
+def checkEQfileExist(name,ind):
+    return os.path.isfile(eqFileLoc+name+str(ind)+".6i")
+    
+
+
+def copy_text_file(original_file, copied_file):
+    try:
+        with open(original_file, 'r') as original:
+            # Read the contents of the original file
+            content = original.read()
+
+            # Write the contents to the new file
+            with open(copied_file, 'w') as copied:
+                copied.write(content)
+
+        #print(f"Contents of '{original_file}' successfully copied to '{copied_file}'.")
+    except FileNotFoundError:
+        print(f"Error: The file '{original_file}' does not exist.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+def copyMasters(name,r):
+    #print("t1")
+    copy_text_file(eq6master, eqFileLoc+name+str(r)+'.6i')
+    copy_text_file(eq3master, eqFileLoc+name+str(r)+'.3i')
+
+def rename6p_to_6i(file6p,file6i):
+    #print("t2")
+    copy_text_file(file6p, file6i)
+
+
+def updateTemp6i(temp,file6i):
+    #file6i = eq6file
     string = "|  [x] ( 0) Constant temperature:                                              |"
     scientific_notation = "{:.5e}".format(temp)
     stringReplace = "|             Value (C)         | "+scientific_notation+"| (tempcb)                        |\n"
     return replaceLine(file6i, string, stringReplace, 1)
 
-def updateTemp3i(temp):
-    file3i = eq3file
+def updateTemp3i(temp,file3i):
+    #file3i = eq3file
     string = "|Temperature (C)         |"
     scientific_notation = "{:.5e}".format(temp)
     stringReplace = "|Temperature (C)         | "+scientific_notation+"| (tempc)                                |\n"
     return replaceLine(file3i, string, stringReplace, 0)
 
-def updatePress3i(P):
-    file3i = eq3file
+def updatePress3i(P,file3i):
+    #file3i = eq3file
     string = "( 2) Value (bars)"
     scientific_notation = "{:.5e}".format(P)
     stringReplace = "|  [x] ( 2) Value (bars) | "+scientific_notation+"| (press)                                |\n"
     return replaceLine(file3i, string, stringReplace, 0)
 
-def updatePress6i(P):
-    file6i = eq6file
+def updatePress6i(P,file6i):
+    #file6i = eq6file
     string = "|  [x] ( 2) Constant pressure:                                                 |"
     scientific_notation = "{:.5e}".format(P)
     stringReplace = "|             Value (bars)      | "+scientific_notation+"| (pressb)                        |\n"
     return replaceLine(file6i, string, stringReplace, 1)
 
 
-def updateReactant3i(reactant, molality):
-    file3i = eq3file
+def updateReactant3i(reactant, molality, name):
+    file3i = eqFileLoc+name+".3i"
     string = "|"+reactant
     scientific_notation = "{:.5e}".format(molality)
     stringReplace = "|"+reactant.ljust(48," ")+"| "+scientific_notation+"|Molality        |\n"
     return replaceLine(file3i, string, stringReplace, 0)
 
-def updateReactant(reactant, moles):
-    file6i = eq6file
+def updateReactant(reactant, moles,name):
+    file6i = eqFileLoc+name+".6i"
     string = reactant
     scientific_notation = "{:.5e}".format(moles)
     stringReplace = "|->|Amount remaining (moles) | "+scientific_notation+"| (morr(n))                          |\n"
@@ -138,12 +172,12 @@ def extractVal(searchFor, retCurr):
         previousline=line
     return("not found")
 
-def numberOfSteps():
+def numberOfSteps(name):
     count=0
     Xi = np.array([0])
     printActive=0
     try:
-        with open(eq6ofile) as f:
+        with open(eqFileLoc+name+'.6o') as f:
             for line in f:
                 if "Log Xi=" in line and printActive:
                     spl=line.split()
@@ -158,11 +192,11 @@ def numberOfSteps():
         print('sucks to suck')
     return count,Xi
 
-def extractSpecie(spec,N):
+def extractSpecie(spec,N,name):
     mSpec = np.zeros(N)
     count=-1
     try:
-        with open(eq6ofile) as f:
+        with open(eqFileLoc+name+'.6o') as f:
             printActive=0
             for line in f:
                 if printActive:
@@ -181,12 +215,12 @@ def extractSpecie(spec,N):
         print('sucks to suck')
     return mSpec
         
-def extractProduct(N):
+def extractProduct(N,name):
     mSolids = dict()
     countdown=0
     count=-1
     try:
-        with open(eq6ofile) as f:
+        with open(eqFileLoc+name+'.6o') as f:
             for line in f:
                 if countdown>1:
                     countdown = countdown-1
@@ -208,11 +242,11 @@ def extractProduct(N):
         print('sucks to suck')
     return mSolids
 
-def extractpH():
+def extractpH(name):
     mSpec = np.array([])
     off=1
     try:
-        with open(eq6ofile) as f:
+        with open(eqFileLoc+name+'.6o') as f:
             for line in f:
                 if "NBS pH scale" in line and off==1:
                     off=0
@@ -227,80 +261,132 @@ def extractpH():
     
 def moveFile(file,fileLoc,newLoc):
     status=os.system("mv "+fileLoc+file+" "+newLoc)
-        
-def runModel(tempK,Ppascal):
+
+
+def executeEQ6(tempK,Pa,name,ind):
+    P = Pa*10**-5 # convert to bars
+    temp=tempK-273.15
+    
+    eq6file=name+ind
+    eq6ifile=eqFileLoc+name+ind+".6i"
+    eq6pfile=eqFileLoc+name+ind+".6p"
+    rename6p_to_6i(eq6pfile,eq6ifile)
+    
+    updateTemp6i(temp,eq6ifile)
+    updatePress6i(P,eq6ifile)
+
+    db500="500.d1"
+    db1kb="1kb.d1"
+    db2kb="2kb.d1"
+    db5kb="5kb.d1"
+    pwd="/Users/samuelcourville/Documents/JPL/combinedModel/" #dangerous!
+    
+    dbStr='5kb.d1'
+    if P<500:
+        dbStr='500.d1'
+    elif P<1500:
+        dbStr='1kb.d1'
+    elif P<2500:
+        dbStr='2kb.d1'
+
+    status = os.system(eq6_ex +" "+eq36_db_dir+dbStr+" "+eq6ifile+" > /dev/null")
+    moveFile(eq6file+".6o",pwd,eqFileLoc)
+    moveFile(eq6file+".6tx",pwd,eqFileLoc)
+    moveFile(eq6file+".6t",pwd,eqFileLoc)
+    moveFile(eq6file+".6p",pwd,eqFileLoc)
+    moveFile(eq6file+".6bb",pwd,eqFileLoc)
+    moveFile(eq6file+".6ba",pwd,eqFileLoc)
+
+    #print("exit: " + str(status))
+    return status
+
+ 
+def runModel(tempK,Ppascal,name,ind):
     P = Ppascal*10**-5 # convert to bars
     temp=tempK-273.15
-    updateTemp3i(temp)
-    updateTemp6i(temp)
-    updatePress3i(P)
-    updatePress6i(P)
+    
+    eqfile=name+ind
+    eq3ifile=eqFileLoc+name+ind+".3i"
+    eq3pfile=eqFileLoc+name+ind+".3p"
+    eq6ifile=eqFileLoc+name+ind+".6i"
+    
+    updateTemp3i(temp,eq3ifile)
+    updateTemp6i(temp,eq6ifile)
+    updatePress3i(P,eq3ifile)
+    updatePress6i(P,eq6ifile)
 
     db500="500.d1"
     db1kb="1kb.d1"
     db2kb="2kb.d1"
     db5kb="5kb.d1"
     pwd="/Users/samuelcourville/Documents/JPL/combinedModel/"
+    #pwd="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/"
+    
+    dbStr='5kb.d1'
     if P<500:
-        status = os.system(eq3_ex +" "+eq36_db_dir+db500+" "+eq3file+" > /dev/null")
-        moveFile("ariel.3p",pwd,eqFileLoc)
-        copyPickup(eq6file,eq3pfile)
-        status = os.system(eq6_ex +" "+eq36_db_dir+db500+" "+eq6file+" > /dev/null")
-        moveFile("ariel.6o",pwd,eqFileLoc)
+        dbStr='500.d1'
     elif P<1500:
-        status = os.system(eq3_ex +" "+eq36_db_dir+db1kb+" "+eq3file+" > /dev/null")
-        moveFile("ariel.3p",pwd,eqFileLoc)
-        copyPickup(eq6file,eq3pfile)
-        status = os.system(eq6_ex +" "+eq36_db_dir+db1kb+" "+eq6file+" > /dev/null")
-        moveFile("ariel.6o",pwd,eqFileLoc)
+        dbStr='1kb.d1'
     elif P<2500:
-        status = os.system(eq3_ex +" "+eq36_db_dir+db2kb+" "+eq3file+" > /dev/null")
-        moveFile("ariel.3p",pwd,eqFileLoc)
-        copyPickup(eq6file,eq3pfile)
-        status = os.system(eq6_ex +" "+eq36_db_dir+db2kb+" "+eq6file+" > /dev/null")
-        moveFile("ariel.6o",pwd,eqFileLoc)
-    else:
-        status = os.system(eq3_ex +" "+eq36_db_dir+db5kb+" "+eq3file+" > /dev/null")
-        moveFile("ariel.3p",pwd,eqFileLoc)
-        copyPickup(eq6file,eq3pfile)
-        status = os.system(eq6_ex +" "+eq36_db_dir+db5kb+" "+eq6file+" > /dev/null")
-        moveFile("ariel.6o",pwd,eqFileLoc)
+        dbStr='2kb.d1'
+
+    status = os.system(eq3_ex +" "+eq36_db_dir+dbStr+" "+eq3ifile+" > /dev/null")
+    moveFile(eqfile+".3p",pwd,eqFileLoc)
+    moveFile(eqfile+".3o",pwd,eqFileLoc)
+    copyPickup(eq6ifile,eq3pfile)
+    status = os.system(eq6_ex +" "+eq36_db_dir+dbStr+" "+eq6ifile+" > /dev/null")
+    moveFile(eqfile+".6o",pwd,eqFileLoc)
+    moveFile(eqfile+".6tx",pwd,eqFileLoc)
+    moveFile(eqfile+".6t",pwd,eqFileLoc)
+    moveFile(eqfile+".6p",pwd,eqFileLoc)
+    moveFile(eqfile+".6bb",pwd,eqFileLoc)
+    moveFile(eqfile+".6ba",pwd,eqFileLoc)
     
     #print("exit: " + str(status))
     return status
 
-def updateAQ(H2,Cl):
-    updateReactant3i("H2(aq)", H2)
-    #updateReactant3i("HCO3-", HCO3)
-    #updateReactant3i("NH3(aq)", NH3)
-    updateReactant3i("Cl-", Cl)
-    #updateReactant3i("Methanol(aq)", M)
-    #updateReactant3i("Formaldehyde(aq)", F)
+def updateAQ(H2,Cl, dir):
+    updateReactant3i("H2(aq)", H2, dir)
+    #updateReactant3i("HCO3-", HCO3, dir)
+    #updateReactant3i("NH3(aq)", NH3, dir)
+    updateReactant3i("Cl-", Cl, dir)
+    #updateReactant3i("Methanol(aq)", M, dir)
+    #updateReactant3i("Formaldehyde(aq)", F, dir)
 
-def updateRock(Q,S,C,K,N,L,B,F,P,Mn,CO2,CO,NH3,M,Fm,CH4):
-    updateReactant("Quartz", Q)
-    updateReactant("H2S(aq)", S)
-    updateReactant("Corundum", C)
-    updateReactant("K2O", K)
-    updateReactant("Na2O", N)
-    updateReactant("Lime", L)
-    updateReactant("Bunsenite", B)
-    updateReactant("FeO", F)
-    updateReactant("Periclase", P)
-    updateReactant("Manganosite", Mn)
-    updateReactant("CO2(aq)", CO2)
-    updateReactant("CO(aq)", CO)
-    updateReactant("NH3(aq)", NH3)
-    updateReactant("Methanol(aq)", M)
-    updateReactant("Formaldehyde(aq)", Fm)
-    updateReactant("Methane(aq)", CH4)
+# MUST UPGRADE
+def updateReacts(rs,name):
+    for i in rs:
+        if not i=="H2O":
+            updateReactant(convert2EQ(i),rs[i],name)
 
-def extractAq(N):
+# MUST UPGRADE!!!!!
+def convert2EQ(name):
+    return name+"(aq)"
+
+def updateRock(Q,S,C,K,N,L,B,F,P,Mn,CO2,CO,NH3,M,Fm,CH4,name):
+    updateReactant("Quartz", Q,name)
+    updateReactant("H2S(aq)", S,name)
+    updateReactant("Corundum", C,name)
+    updateReactant("K2O", K,name)
+    updateReactant("Na2O", N,name)
+    updateReactant("Lime", L,name)
+    updateReactant("Bunsenite", B,name)
+    updateReactant("FeO", F,name)
+    updateReactant("Periclase", P,name)
+    updateReactant("Manganosite", Mn,name)
+    updateReactant("CO2(aq)", CO2,name)
+    updateReactant("CO(aq)", CO,name)
+    updateReactant("NH3(aq)", NH3,name)
+    updateReactant("Methanol(aq)", M,name)
+    updateReactant("Formaldehyde(aq)", Fm,name)
+    updateReactant("Methane(aq)", CH4,name)
+
+def extractAq(N,name):
     mAq = dict()
     countdown=0
     count=-1
     try:
-        with open(eq6ofile) as f:
+        with open(eqFileLoc+name+'.6o') as f:
             for line in f:
                 if countdown>1:
                     countdown = countdown-1
@@ -322,12 +408,12 @@ def extractAq(N):
         print('sucks to suck')
     return mAq
 
-def extractFug(N):
+def extractFug(N,name):
     fugs = dict()
     countdown=0
     count=-1
     try:
-        with open(eq6ofile) as f:
+        with open(eqFileLoc+name+'.6o') as f:
             for line in f:
                 if countdown>1:
                     countdown = countdown-1

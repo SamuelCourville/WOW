@@ -17,12 +17,12 @@
 |Replace |SO4--                                           | (usbsw(1,n))       |
 |   with |HS-                                             | (usbsw(2,n))       |
 |------------------------------------------------------------------------------|
-|Temperature (C)         | 3.43630e-01| (tempc)                                |
+|Temperature (C)         | 9.95098e+00| (tempc)                                |
 |------------------------------------------------------------------------------|
 |Pressure option (jpres3):                                                     |
 |  [ ] ( 0) Data file reference curve value                                    |
 |  [ ] ( 1) 1.013-bar/steam-saturation curve value                             |
-|  [x] ( 2) Value (bars) | 5.14450e+02| (press)                                |
+|  [x] ( 2) Value (bars) | 5.15339e+02| (press)                                |
 |------------------------------------------------------------------------------|
 |Density (g/cm3)         | 1.00000E+00| (rho)                                  |
 |------------------------------------------------------------------------------|
@@ -35,11 +35,11 @@
 |  [x] ( 1) Balance on species |H+                      | (uebal)              |
 |------------------------------------------------------------------------------|
 |Default redox constraint (irdxc3):                                            |
-|  [ ] (-3) Use O2(g) line in the aqueous basis species block                  |
+|  [x] (-3) Use O2(g) line in the aqueous basis species block                  |
 |  [ ] (-2) pe (pe units)      | 0.00000E+00| (pei)                            |
 |  [ ] (-1) Eh (volts)         | 0.00000E+00| (ehi)                            |
 |  [ ] ( 0) Log fO2 (log bars) |-5.00000E+01| (fo2lgi)                         |
-|  [x] ( 1) Couple (aux. sp.)  |H2(aq)                  | (uredox)             |
+|  [ ] ( 1) Couple (aux. sp.)  |H2(aq)                  | (uredox)             |
 |------------------------------------------------------------------------------|
 |Aqueous Basis Species/Constraint Species        |Conc., etc. |Units/Constraint|
 | (uspeci(n)/ucospi(n))                          | (covali(n))|(ujf3(jflgi(n)))|

@@ -12,6 +12,10 @@ rockEquilDir="/Users/samuelcourville/Documents/JPL/combinedModel/rock"
 fileRData = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects/WOW/WOW.RData"
 #fileRData = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/WOW.RData"
 
+mainDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
+
+
+
 def rockEquil(Comp,P,T):
     fN=inputDir
     #fN="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
@@ -22,6 +26,8 @@ def rockEquil(Comp,P,T):
         sumComp += Comp[key]
     for key in Comp:    
         Comp[key] *= 100/sumComp
+        if Comp[key]<0: # WRONG!!!!!! Make a better fix
+            Comp[key]=0
     updateRCrustInput(fN,Pc,T,Comp)
     executeRCrust(RCrustProjName)
     ddicts, specs = extractRData()
@@ -55,7 +61,7 @@ def executeRCrust(pN):
     #os.chdir("/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/")
     os.chdir(codeDir)
     status = os.system("Rscript "+mainScript+" "+pN+" >/dev/null")
-    os.chdir(rockEquilDir)
+    os.chdir(mainDir)
 
 def updateRCrustInput(fN,P,T,Comp):
     #line 16 and 17
