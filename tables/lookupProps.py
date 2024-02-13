@@ -23,13 +23,13 @@ class LookupProps:
         wtsI=[]
         for i,k in enumerate(IceComp):
             wtsI.append(IceComp[k]/M)
-            C = LookupProps.getTcondCoeffs(k)
+            C = LookupProps.getTcondCoeffs("H2O") #Assumes everything is H2O! k)
             valsI.append(LookupProps.TCondFunc(C,P,T))
         valsA=[]
         wtsA=[]
         for i,l in enumerate(AqComp):
             wtsA.append(AqComp[l]/M)
-            C = LookupProps.getTcondCoeffs(l)
+            C = LookupProps.getTcondCoeffs("Liquid water") #WRONG! Assumes everything is water.
             valsA.append(LookupProps.TCondFunc(C,P,T))
         vals=valsR+valsI+valsA+valsR_pre
         wts=wtsR+wtsI+wtsA+wtsR_pre
@@ -61,13 +61,13 @@ class LookupProps:
         wtsI=[]
         for i,k in enumerate(IceComp):
             wtsI.append(IceComp[k]/M)
-            C = LookupProps.getCpCoeffs(k)
+            C = LookupProps.getCpCoeffs("H2O") #Assumes water k)
             valsI.append(LookupProps.HeatCapFunc(C,P,T))
         valsA=[]
         wtsA=[]
         for i,l in enumerate(AqComp):
             wtsA.append(AqComp[l]/M)
-            C = LookupProps.getCpCoeffs(l)
+            C = LookupProps.getCpCoeffs("Liquid water") # Wrong! assumes everything is water
             valsA.append(LookupProps.HeatCapFunc(C,P,T))
         vals=valsR+valsI+valsA+valsR_pre
         wts=wtsR+wtsI+wtsA+wtsR_pre
@@ -75,6 +75,7 @@ class LookupProps:
         #print('Cp:')
         #print(vals)
         #print(wts) 
+        #print(cp) 
         return cp
 
 
@@ -98,21 +99,22 @@ class LookupProps:
         wtsI=[]
         for i,k in enumerate(IceComp):
             wtsI.append(IceComp[k]/M)
-            C = LookupProps.getRhoCoeffs(k)
+            C = LookupProps.getRhoCoeffs("H2O") # assumes water
             valsI.append(LookupProps.rhoFunc(C,P,T))
         valsA=[]
         wtsA=[]
         for i,l in enumerate(AqComp):
             wtsA.append(AqComp[l]/M)
-            C = LookupProps.getRhoCoeffs(l)
+            C = LookupProps.getRhoCoeffs("Liquid water") # Wrong! assumes everything is water
             valsA.append(LookupProps.rhoFunc(C,P,T))
         vals=valsR+valsI+valsA+valsR_pre
         wts=wtsR+wtsI+wtsA+wtsR_pre
-        cp = LookupProps.avgProps(vals,wts)
+        rho = LookupProps.avgProps(vals,wts)
         #print('rho:')
         #print(vals)
-        #print(wts) 
-        return cp
+        #print(wts)
+        #print(rho) 
+        return rho
 
 
 

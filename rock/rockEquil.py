@@ -1,6 +1,7 @@
 import os
 import rpy2.robjects as robjects
 import numpy as np
+from scipy.special import erf
 
 #codeDir = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/"
 codeDir = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/code/"
@@ -15,20 +16,79 @@ fileRData = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects/WOW/WO
 mainDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
 
 
+def organicBreakdown(comp, org, p, t, prevOrgT):
+    if t<prevOrgT:
+        return comp, org, {}, prevOrgT
 
-def rockEquil(Comp,P,T):
+    factSam=0.474
+    # These functions come from my previous pluto work. Interpolated from Okumura 2011. Need to be upgraded
+    CO2rel = 0.0102/factSam*(erf((t-680)/240)+1)-0.0102/factSam*(erf((prevOrgT-680)/240)+1)
+    H2Orel = 0.004/factSam*(erf((t-620)/210)+1)-0.004/factSam*(erf((prevOrgT-620)/210)+1)
+    CH4rel = 0.0015/factSam*(erf((t-860)/110)+1)-0.0015/factSam*(erf((prevOrgT-860)/110)+1)
+
+    Ofrac = (32.0/44.0*CO2rel+16.0/18.0*H2Orel)
+    Hfrac = (2.0/18.0*H2Orel+4.0/16.0*CH4rel)
+    Cfrac = (12.0/44.0*CO2rel+12.0/16.0*CH4rel)
+
+    Mtot=Ofrac+Hfrac+Cfrac
+
+    Norg = org*(1-Mtot) # STILL NOT RIGHT. NEEDS TO BE FRACTION OF ORIGINAL MASS
+
+    OfracRem = Ofrac*org
+    CfracRem = Cfrac*org
+    HfracRem = Hfrac*org
+
+    comp["C"]=comp["C"]#+CfracRem
+    comp["H"]=comp["H"]#+HfracRem
+    comp["O"]=comp["O"]#+OfracRem
+
+
+    #Norg={}
+    oO=1 # Needs to be something else
+    #Norg["O"]=org["O"]-Ofrac # WRONG!
+    #Norg["H"]=org["H"]-Hfrac
+    #Norg["C"]=org["C"]-Cfrac #*oO
+    #print(t)
+    #print(prevOrgT)
+    #print(oO)
+    #print(Ofrac)
+
+    #volatiles={"CO2":CO2rel*oO,"H2O":H2Orel*oO,"CH4":CH4rel*oO}
+    volatiles={"C":CfracRem,"H":HfracRem,"O":OfracRem}
+    
+    newOrgT=t
+
+    return comp, Norg, volatiles, newOrgT
+
+
+def rockEquil(Comp,P,T,prevOrgT):
+    if "IOM" in Comp:
+        org = Comp["IOM"]
+    else: 
+        org=0
+    Comp,org,volatiles,newOrgT=organicBreakdown(Comp,org,P,T,prevOrgT)
+    diffComp={}    
+
     fN=inputDir
     #fN="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
     RCrustProjName="WOW"
     Pc = P/100000/1000 #convert to kbar
     sumComp = 0
     for key in Comp:    
-        sumComp += Comp[key]
-    for key in Comp:    
-        Comp[key] *= 100/sumComp
-        if Comp[key]<0: # WRONG!!!!!! Make a better fix
-            Comp[key]=0
-    updateRCrustInput(fN,Pc,T,Comp)
+        if not key=="IOM": #Ignore IOM component
+            diffComp[key]=Comp[key]
+            sumComp += diffComp[key]
+    orgFrac=org/(sumComp)
+    if sumComp==0: # For debugging
+        print(diffComp)
+        print(Comp)
+        print(org)
+        print(bob)
+    for key in diffComp:    
+        diffComp[key] *= 100/sumComp
+        if diffComp[key]<0: # WRONG!!!!!! Make a better fix. This should never be negative. But sometimes it is. Why?
+            diffComp[key]=0
+    updateRCrustInput(fN,Pc,T,diffComp)
     executeRCrust(RCrustProjName)
     ddicts, specs = extractRData()
     spec_list = list(specs)
@@ -40,13 +100,22 @@ def rockEquil(Comp,P,T):
         indx=specs.index("Bulk_rs")
         E = ddicts[indx]['Enthalpy (J/kg)']
         newCompDict=copy_dict_entries(ddicts[indx],Comp.keys())
+        newCompDict["IOM"]=orgFrac*100
         for key in newCompDict:    
             newCompDict[key] *= (1/100)
     else:
         newCompDict={}
         print("Perplex failed on input:")
-        print(Comp)
-    return newCompDict, ddicts, specAr, E, success
+        print(diffComp)
+    newCompDict=normalize_dictionary_values(newCompDict)
+    return newCompDict, ddicts, specAr, E, newOrgT, volatiles, success
+
+def normalize_dictionary_values(dictionary):
+    # Calculate the sum of values in the dictionary
+    total_sum = sum(dictionary.values())
+    # Normalize the values so that they sum to 1
+    normalized_dict = {key: value / total_sum for key, value in dictionary.items()}
+    return normalized_dict
 
 def copy_dict_entries(original_dict, keys_to_copy):
     new_dict = {}
@@ -71,7 +140,8 @@ def updateRCrustInput(fN,P,T,Comp):
     replace_line_in_file(fN, 17, line17, fN)
 
     #line 25
-    line25="pt_definitions<-list(\"{1;1}_{1;1}\"=c(\""+str(P)+"+0*y_i\",\""+str(T)+"+0*x_i\"))"
+    Tc = T-273.15
+    line25="pt_definitions<-list(\"{1;1}_{1;1}\"=c(\""+str(P)+"+0*y_i\",\""+str(Tc)+"+0*x_i\"))"
     replace_line_in_file(fN, 25, line25, fN)
 
     #lines 34 and 40
@@ -88,6 +158,11 @@ def updateRCrustInput(fN,P,T,Comp):
     replace_line_in_file(fN, 34, line34, fN)
     replace_line_in_file(fN, 40, line40, fN)
 
+
+# This is a function that I may eventuall;y write to extract the speciation of the fluids
+#def extractPhaseSpeciation(file_path):
+#    
+#
 
 def convert_rdata_list_to_dict(file_path):
     r = robjects.r

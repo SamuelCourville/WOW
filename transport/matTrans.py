@@ -2,13 +2,42 @@ import numpy as np
 
 class matTrans:
 
-    def differentiate(grid,tC,bC):
+    def differentiate(grid,tC,bC,addImp):
         nC=tC-bC
-        
+
+        aqAll = matTrans.grabWater(grid, nC)
         rockCopy, phaseDatCopy, phasesCopy = matTrans.squishRocks(grid,nC)
-        aqAll = matTrans.grabWater(grid,nC)
         aqCopy= matTrans.distributeWater(grid,aqAll,rockCopy,nC)
+        matTrans.AddImpurities(aqCopy, addImp)
+        #orgCopy = matTrans.checkOrgs(grid,nC)
         return aqCopy,rockCopy,phaseDatCopy,phasesCopy
+
+    def AddImpurities(aqcopy,impurities):
+        M=0
+        for i in impurities:
+            M+=impurities[i]
+
+        ind=0
+        for i in range(len(aqcopy)-1,0,-1):
+            if "H2O" in aqcopy[i] and aqcopy[i]["H2O"]>M:
+                ind=i
+                aqcopy[i]["H2O"]=aqcopy[i]["H2O"]-M
+                for j in impurities:
+                    if j in aqcopy[i]:
+                        aqcopy[i][j]+=impurities[j]
+                        #print(impurities[j])
+                    else:
+                        aqcopy[i][j]=impurities[j]
+                        #print(impurities[j])
+
+
+
+    def checkOrgs(grid,nC):
+        orgCopy=[{}]*nC
+        for i in range(0,nC):
+             if not grid[i].getRockMass()==0:
+                 orgCopy[i]=grid[i].OrgComp
+        return orgCopy
 
     def grabWater(grid,nC):
         aqAll=dict()
@@ -36,8 +65,10 @@ class matTrans:
             rockM=0
             for j in rockCopy[i]:
                 rockM+=rockCopy[i][j]
-            cellM=grid[i].Mass
-            if rockM<cellM:
+            cellM=grid[i].Mass-grid[i].getIceMass()
+            if (cellM-rockM)>10000: # Why do I need a buffer here? Why is numerical precision a problem?
+                #print(i)
+                #print(cellM-rockM)
                 addM=cellM-rockM
                 for k in aqAll:
                     aqCopy[i][k]=weights[k]*addM
@@ -62,18 +93,19 @@ class matTrans:
             phaseDatCopy[i]=dict()
             phasesCopy[i]=[]
             for j in grid[i].RockComp:
-                rockM[i]+=grid[i].RockComp[j]
-                rockCopy[i][j]=grid[i].RockComp[j]
+                if not grid[i].Celltype==0: # UNDIFF
+                    rockM[i]+=grid[i].RockComp[j]
+                    rockCopy[i][j]=grid[i].RockComp[j]
             for j in grid[i].RockComp:
                 if rockM[i]>0:
                     rockWeights[i][j]=grid[i].RockComp[j]/rockM[i]
                 else:
                     rockWeights[i][j]=0
             rockM3[i]=rockM[i]
+
         for i in range(nC):
-            cellM=grid[i].Mass
+            cellM=grid[i].Mass-grid[i].getIceMass()
             missM=cellM-rockM[i]
-            addRock=dict()
             for j in range(i+1,nC):
                 if rockM[j]>=missM:
                     for k in rockCopy[j]:
@@ -97,7 +129,11 @@ class matTrans:
             #print(rockCopy[i]["H"])
         #print(bob)
         rockM2=[0] * nR
+        tempRI={}
         for i in range(nC):
+            if grid[i].Celltype == 0:  # UNDIFF
+                for j in grid[i].RIComp:
+                    tempRI[j]=grid[i].RIComp[j]
             #print(grid[i].Mass)
             for j in rockCopy[i]:
                 rockM2[i]+=rockCopy[i][j]
@@ -120,7 +156,13 @@ class matTrans:
             else:
                 for j in grid[i].RIComp:
                     grid[i].RIComp[j]=0
-            
+
+            if grid[i].Celltype==0: # UNDIFF
+                for k in grid[i].RockComp:
+                    rockCopy[i][k]=grid[i].RockComp[k]
+                for j in tempRI:
+                    grid[i].RIComp[j]=tempRI[j]
+
             grid[i].reclassify()
                 
         return rockCopy,phaseDatCopy,phasesCopy
@@ -156,36 +198,40 @@ class matTrans:
         print(bob)
 
     def extractPoreFluid(gridC):
+        ex={}#{"H":0,"C":0,"Mg":0,"Al":0,"Si":0,"S":0,"Ca":0,"Fe":0,"O":0,"Na":0,"N":0}
+        bv=0
         if "F_rs" in gridC.RockPhases:
             indP = np.where(gridC.RockPhases=='F_rs')
             ind = indP[0][0] # What is this garbage?
-            #print(ind)
-            #print(gridC.RockPhases)
-            #print(len(gridC.RockPhaseDat))
-            #print(gridC.RockPhaseDat)
-            if 'H2O' in gridC.AqComp:
-                gridC.AqComp['H2O']+=gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
-            else:                
-                gridC.AqComp['H2O']=gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+            for i in ["H","C","Mg","Al","Si","S","Ca","Fe","O","Na","N"]:
+                if i in gridC.AqComp:
+                    gridC.AqComp[i]+=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                else:                
+                    gridC.AqComp[i]=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                if i in ex:
+                    ex[i]+=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                else:
+                    ex[i]=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                #print(ex[i])
             matTrans.removeRockEl(gridC,ind)
             gridC.RockPhases=np.delete(gridC.RockPhases,ind)
             del gridC.RockPhaseDat[ind]
-            #print(bob)
-            return True
         if "F_1_rs" in gridC.RockPhases:
             indP = np.where(gridC.RockPhases=='F_1_rs')
             ind = indP[0][0] # What is this garbage?
-            if 'H2O' in gridC.AqComp:
-                gridC.AqComp['H2O']+=gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
-            else:                
-                gridC.AqComp['H2O']=gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+            for i in ["H","C","Mg","Al","Si","S","Ca","Fe","O","Na","N"]:
+                if i in gridC.AqComp:
+                    gridC.AqComp[i]+=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                    ex[i]+=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                else:                
+                    gridC.AqComp[i]=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                    ex[i]=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
             matTrans.removeRockEl(gridC,ind)
             gridC.RockPhases=np.delete(gridC.RockPhases,ind)
             del gridC.RockPhaseDat[ind]
-            return True
         if "F_2_rs" in gridC.RockPhases:
             print("found F_2, but no code to deal with it yet.")
-        return False
+        return bv, ex
 
     def removeRockEl(gcell,ind):
         Els = ["H","C","Mg","Al","Si","S","Ca","Fe","O","Na","N"]
@@ -195,6 +241,7 @@ class matTrans:
             #print(gcell.RockComp[i])
             removeI = gcell.RockPhaseDat[ind][i]/100*gcell.RockPhaseDat[ind]['wt%']/100*gcell.getRockMass()
             gcell.RockComp[i]=gcell.RockComp[i]-removeI
+            #gcell.AqComp[i]=removeI
             #print(removeI)
             #print(gcell.RockComp[i])
 

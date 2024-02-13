@@ -456,3 +456,71 @@ def float_to_str(f):
         f=0.0
     d1 = ctx.create_decimal(repr(f))
     return format(d1, 'f')
+
+def updateSpecialReactantElement(El,value,fname):
+    filename=fname
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+        
+        for i, line in enumerate(lines):
+            if "|--->|"+El in line and "(uesri(i,n), cesri(i,n))" in line:
+
+                # Replace the numeric value with the new value
+                if len(El)>1:
+                    new_line = "|--->|"+El+"      |"+"{:0.16e}".format(value)+"| (uesri(i,n), cesri(i,n))                |\n"
+                else:
+                    new_line = "|--->|"+El+"       |"+"{:0.16e}".format(value)+"| (uesri(i,n), cesri(i,n))                |\n"
+                # Update the line in the list of lines
+                lines[i] = new_line
+
+        with open(filename, 'w') as file:
+            file.writelines(lines)
+        #print(f"Successfully replaced the numeric value with {new_value}.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+# Obsoslete
+def reweightSpecialReactant(values,massW):
+    newDict={}
+    elD={"H":1,"C":12.01,"Mg":24.31,"Si":28.09,"Fe":55.85,"Ca":40.08,"Na":22.99,"Al":26.98,"K":39.10,"O":16,"S":32.07,"N":14.01}
+    sumM=0
+    sumKG=0
+    for i in elD:
+        if i in values:
+            sumKG+=values[i]
+            newDict[i]=values[i]/elD[i]
+            sumM+=newDict[i]
+    newM=0
+    if sumM==0:
+        return {},0.0
+    for i in newDict:
+        newDict[i]=newDict[i]/sumM
+        newM+=newDict[i]*elD[i]
+    newM=newM/1000
+    moles=sumKG/massW/newM
+    return newDict, moles
+    
+
+def updateSpecialReactant(values,ni):
+    name = eqFileLoc+ni+".6i"
+    elementList=["H","C","S","N","Mg","Si","Fe","Ca","Na","Al","K","O"]
+    #molVal, nMols=reweightSpecialReactant(values,massW) # DELETE
+    for i in elementList:
+        if i in values:
+            updateSpecialReactantElement(i,values[i],name)
+        else:
+            updateSpecialReactantElement(i,0.0,name)
+    updateSpecReactant("d0001",1.0,name)
+
+
+def updateSpecReactant(reactant, moles,name):
+    file6i = name
+    string = reactant
+    scientific_notation = "{:.5e}".format(moles)
+    stringReplace = "|->|Amount remaining (moles) | "+scientific_notation+"| (morr(n))                          |\n"
+    stringReplace2 = "|--->|dXi(n)/dXi (mol/mol)      | "+scientific_notation+"| (rkb(1,1,n))                    |\n"
+    replaceLine(file6i, string, stringReplace2, 46)
+    return replaceLine(file6i, string, stringReplace, 6)
+

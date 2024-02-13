@@ -10,13 +10,14 @@ from aqStep import *
 from matTrans import *
 from rockEquil import *
 from lookupProps import *
+from plotHelper import *
 
 # System to define cell types
 class cellTypes:
     UNDIFF=0  # Use for cells that are primordial frozen accreted material
     MIXED=1   # Use for cells that are at compositional boundaries (e.g., rocky-mantle/ocean interface or ice/ocean interface)
     FLUID=2   # Use for cells that are fluid (e.g., ocean)
-    ROCK=3    # Use for cells that are part of the rocky interior (my have fluid in pore space in future implementations).
+    ROCK=3    # Use for cells that are part of the rocky interior (may have fluid in pore space in future implementations).
     ICE=4     # Use for cells that are part of the outer ice shell
     IGNORE=5  # Use for testing or error catching
 
@@ -48,11 +49,15 @@ class gridCell:
         self.Vol=0            # The volume of the cell
         self.Mass=0           # The mass of the cell (This is defined to stay constant once initialized)
         self.Temp=0           # The current temperature of the cell
+        self.MaxOrgTemp=0     # The maximum temperature thet the organics have reached in the cell NEEDS TO BE UPGRADED! BAD IDEA
         self.Press=0          # The current pressure within the cell
         # Cell properties
         self.Dens=0           # The current density of the cell
+        self.DenCo=[0,0,0]    # ADD NOTE
         self.TCond=0          # The thermal conductivity of the cell
+        self.TCondCo=[0,0,0]  # ADD NOTE
         self.Cp=0             # The heat capacity of the cell
+        self.CpCo=[0,0,0]     # ADD NOTE
         self.Porosity=0       # The porosity of the cell (NOT IMPLEMENTED YET)
 
         # Cell aqueous composition
@@ -61,8 +66,8 @@ class gridCell:
         self.fO2=0            # fO2 (e.g., redox state) of the fluid component  
         self.AqComp = dict()  # A dictionary to store the elemental composition of the aqueous component
         self.AqSpec = dict()  # A dictionary to store the aqueous speciation of the aqueous composition
-        self.AqMin = dict()  # A dictionary to store the precipitated minerals of the aqueous composition
-        self.AqGas = dict()  # A dictionary to store the aqueous gasses of the aqueous composition
+        self.AqMin = dict()   # A dictionary to store the precipitated minerals of the aqueous composition
+        self.AqGas = dict()   # A dictionary to store the aqueous gasses of the aqueous composition
         self.AqMass=0         # A helper variable to store just the mass of the aqueous component
         
         # Cell radiosotopes
@@ -73,11 +78,12 @@ class gridCell:
         self.IceMass=0        # A helper variable to store the mass of the ice component
         
         # Cell rock compositions
-        self.RockComp=dict()  # A dictioary to store elemental abundances of the rock composition
+        self.RockComp=dict()  # A dictionary to store elemental abundances of the rock composition
         self.RockPhases=[]    # An array to store the list of mineral phases
         self.RockPhaseDat=[]  # An array to store dictionaries of properties for each mineral phase
         self.RockMass=0       # A helper variable to store the mass of just the rock component 
-        self.OrgComp=dict()   # A dictioary to store elemental abundances of the organics in the rock composition
+        #self.OrigOrgMass=0    # what wt% of the cell was originally IOM
+        self.OrgComp=dict()   # A dictionary to store elemental abundances of the organics in the rock composition
         
         # Flags and condition variables
         self.TempStep=50      # How many degrees to change before mineralogy will be equilibrated
@@ -124,18 +130,33 @@ class gridCell:
 
            returns doUpate: a flag to decide whether eq36 needs to be run on the next iteration or not (decided by whether perplex ran)
         '''
+        # Gets cell type
+        ct = self.Celltype
+        
         # Updates rock, ice, and fluid masses before equilibration steps
         self.RockMass=self.getRockMass()  
         self.IceMass=self.getIceMass()    
         self.AqMass=self.getWaterMass()   
-        
+
+        iceImp={}
         # If statements to decide which type of equilibration is needed based on what type of composition the cell has.
 
         # Fluid cell uses eq36 equilibration (NOT COMPLETE)
-        if self.Celltype==cellTypes.FLUID:
+        if ct==cellTypes.FLUID:
+            self.AqComp = aqStep.refactor_water(self.AqComp) # removes O and H and changes it to H2O in dictionary
             heat=0
-            if eq36 and self.Temp>273.15:
-                newpH, newpH2, newMin,newAq,newGas,addH=aqStep.callAqEquil(self.AqComp, self.pH2, self.pH, self.Press, self.Temp, name,self.ind)
+            heat2,frozen,newIceComp,iceImp=aqStep.freeze(self.AqComp, self.Press, self.Temp, name,self.ind)
+            if frozen:
+                self.IceComp=newIceComp
+                self.AqComp={}
+                self.AqSpec={}
+                self.pH=np.nan
+                self.pH2=np.nan
+                self.AqGas={}
+                self.AqMin={}
+                self.Celltype=cellTypes.ICE
+            if "H2O" in self.AqComp and not frozen: # I changed this to exclude temperature.
+                newpH, newpH2, newMin,newAq,newGas,addH=aqStep.callAqEquil(self.AqComp, self.Press, self.Temp,name,self.ind)
                 self.AqSpec=newAq
                 self.pH=newpH
                 self.pH2=newpH2
@@ -143,15 +164,12 @@ class gridCell:
                 self.AqMin=newMin
                 heat+=addH
                 self.doUpdate=0
-            heat2,frozen=callAqFreeze(self.AqComp, self.IceComp, self.Press, self.Temp) # DOES NOT DO REAL THERMODYNAMICS YET 
             heat+=heat2
-            if heat>0:
-                self.latentHeat=-heat
-            if frozen:
-                self.Celltype=cellTypes.ICE
+            #if heat>0:
+            #    self.latentHeat=-heat
  
         # Ice shell uses FREZCHEM equilibration (NOT YET IMPLEMENTED!!!!!!)
-        if self.Celltype==cellTypes.ICE:
+        if ct==cellTypes.ICE:
             heat=callIceEquil(self.IceComp, self.AqComp, self.Press, self.Temp)
             if heat>0:
                 self.Celltype=cellTypes.FLUID
@@ -159,13 +177,15 @@ class gridCell:
                 self.lastEquil=0
 
         # Rock cell uses perplex equilibration
-        if self.Celltype==cellTypes.ROCK and (self.Temp-self.lastEquil)>self.TempStep:
+        if ct==cellTypes.ROCK and (self.Temp-self.lastEquil)>self.TempStep:
             if perplex:
-                tempRC,tempRPD,tempRP,E,success=rockEquil(self.RockComp, self.Press, self.Temp)
+                tempRC,tempRPD,tempRP,E,NOT,vols,success=rockEquil(self.RockComp, self.Press, self.Temp, self.MaxOrgTemp)
                 if success:
+                    self.MaxOrgTemp=NOT
                     self.RockComp=tempRC
                     self.RockPhaseDat=tempRPD
                     self.RockPhases=tempRP
+                    self.OrgComp=vols
                     for key in self.RockComp:    
                         self.RockComp[key] *= self.RockMass #self.Mass-(self.getIceMass()+self.getWaterMass())
                     if not self.lastEnthalpy==0:
@@ -181,7 +201,7 @@ class gridCell:
                 #print("perplexed")
         
         # Undifferentiated cell does not use thermodynamics to equilibrate. Melts at 273K. This should be improved.
-        if self.Celltype==cellTypes.UNDIFF:
+        if ct==cellTypes.UNDIFF:
             heat=0
             heat=callIceEquil(self.IceComp, self.AqComp, self.Press, self.Temp)
             if heat>0:
@@ -190,13 +210,13 @@ class gridCell:
                 self.lastEquil=0
 
         # Mixed cell to handle interface condtions (NOT COMPLETE) 
-        if self.Celltype==cellTypes.MIXED:
+        if ct==cellTypes.MIXED:
             self.RockComp, self.AqComp, heat = aqStep.callAqRockEquil(self.RockComp, self.AqComp, self.Press, self.Temp,10)
         #if self.Celltype==cellTypes.IGNORE:
         #    self.AqComp={"H2O":1}
 
         # Return necessary flags for future equilibration steps
-        return self.doUpdate
+        return self.doUpdate, iceImp
  
     def cell_updateProp(self):
         '''
@@ -204,8 +224,12 @@ class gridCell:
         '''
         if True: #self.doUpdate:
             self.TCond=LookupProps.calcThermalCond(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
-            self.Cp = LookupProps.calcHeatCap(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
-            self.Dens =LookupProps.calcDens(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
+            self.Cp= LookupProps.calcHeatCap(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
+            self.Dens=LookupProps.calcDens(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
+        else: # attempt to save time, but no way for it to work
+            self.TCond=LookupProps.TCondFun(self.TCondCo,self.Press,self.Temp)
+            self.Cp=LookupProps.HeatCapFunc(self.CpCo,self.Press,self.Temp)
+            self.DenCo=LookupProps.rhoFunc(self.DenCo,self.Press,self.Temp)
         if self.HtoAdd>0:
             self.Temp+=self.HtoAdd/self.Cp/self.Mass
             self.HtoAdd=0
@@ -221,6 +245,7 @@ class gridCell:
         self.Time=time
         self.ind=OldCell.ind
         self.Temp=OldCell.Temp
+        self.MaxOrgTemp=OldCell.MaxOrgTemp
         self.Press=OldCell.Press
         self.Celltype = OldCell.Celltype
         self.AqComp = OldCell.AqComp.copy()
@@ -233,7 +258,8 @@ class gridCell:
         self.RIComp = OldCell.RIComp.copy()
         self.IceComp= OldCell.IceComp.copy()
         self.RockComp=OldCell.RockComp.copy()
-        self.OrgComp=OldCell.RockComp.copy()
+        #self.OrgComp=OldCell.OrgComp.copy()
+        #self.OrigOrgMass=OldCell.OrigOrgMass
         self.RockPhases=OldCell.RockPhases.copy()
         self.RockPhaseDat=OldCell.RockPhaseDat.copy()
         self.Top=OldCell.Top
@@ -244,8 +270,11 @@ class gridCell:
         self.IceMass=OldCell.IceMass
         self.RockMass=OldCell.RockMass
         self.Dens=OldCell.Dens
+        self.DenCo=OldCell.DenCo
         self.TCond=OldCell.TCond
+        self.TCondCo=OldCell.TCondCo
         self.Cp=OldCell.Cp
+        self.CpCo=OldCell.CpCo
         self.Porosity=OldCell.Porosity
         self.TempStep=OldCell.TempStep
         self.lastEquil=OldCell.lastEquil
@@ -347,12 +376,16 @@ class gridCell:
         '''
            Checks the cell's compoisiton and updates the cell type accordingly. 
         '''
-        if self.RockMass==0 and self.IceMass==0: #not self.RockComp:
+        if self.getRockMass()==0 and self.getIceMass()==0: #not self.RockComp:
             self.Celltype=cellTypes.FLUID
-        elif self.IceMass==0 and self.AqMass==0: #not self.AqComp:
+        elif self.getIceMass()==0 and self.getWaterMass()==0: #not self.AqComp:
             self.Celltype=cellTypes.ROCK
-        elif self.RockMass==0 and self.AqMass==0: #not self.AqComp:
+        elif self.getRockMass()==0 and self.getWaterMass()==0: #not self.AqComp:
             self.Celltype=cellTypes.ICE
+        elif not self.getRockMass()==0 and not self.getWaterMass()==0:
+            self.Celltype=cellTypes.MIXED
+        elif not self.getRockMass()==0 and not self.getIceMass()==0:
+            self.Celltype=cellTypes.UNDIFF
         elif not self.Celltype==cellTypes.ICE:
             self.Celltype=cellTypes.IGNORE
             
@@ -378,7 +411,8 @@ class Planet:
         self.PressStep=Pstep    # Spacing to determine which cells equilibrate. Equilibrate every Pstep cells, and interpolate between for speed
         self.Mass=0             # Total mass of planet. Should stay the same
         self.TempStep=Tstep     # How many degrees K does a cell have to change before instructing the cell to reequilibrate.
-        self.eq36=0             # Flag to decide wheather or not to do an ocean equilibration step. 
+        self.eq36=0             # Flag to decide whether or not to do an ocean equilibration step.
+        self.extracts=[{}]*maxnt# Array of dictionaries to store extracted fluid at each time step 
 
     def timeStep(self,k):
         '''
@@ -390,7 +424,9 @@ class Planet:
         
         if k%10==0:     # Print a statement every 100 time steps so the user can be sure the program is running. 
             print("Step "+str(k)+" out of "+str(self.nt))
-        
+
+        iceImp={}
+        #### CALCUALTE DECAY HEAT
         # Loop through all cells
         for i in range(0,self.nr):
             # for first time step only. Calculate how much decay occurs before model starts. 
@@ -403,34 +439,50 @@ class Planet:
                     self.grid[k,i].cell_heat(self.times[k]-self.times[k-1])
                 self.grid[k,i].cell_decay(self.times[k]-self.times[k-1])
 
+            #### EQUILIBRATE CELLS
             # If on one of the psteps, do a perplex equilibration calculation
             if i%self.PressStep == 0:
-                Neq36=self.grid[k,i].cell_equilibrate(k,1,Yeq36,self.name)
+                Neq36,iceImpT=self.grid[k,i].cell_equilibrate(k,1,Yeq36,self.name)
             else:
-                Neq36=self.grid[k,i].cell_equilibrate(k,0,Yeq36,self.name)
+                Neq36,iceImpT=self.grid[k,i].cell_equilibrate(k,0,Yeq36,self.name)
             # If a perplex equilibration step was just completed, set the next step to conduct an ocean eqilibration step.
             if Neq36:
                 self.eq36=Neq36
+            for ii in iceImpT:
+                if ii in iceImp:
+                    iceImp[ii]+=iceImpT[ii]
+                else:
+                    iceImp[ii]=iceImpT[ii]
         
         # For all cells that aren't on the perplex equilibration grid, copy values from the nearest equilibration step.
         self.copyRockComp(k)
-        
+
+        #### TRANSPORT MATERIAL
+        self.extracts[k]=dict() 
         # Extract fluid generated by the Perplex equilibration, and then update the properties of the cell
         for i in range(0,self.nr):    
-            updateNeeded=matTrans.extractPoreFluid(self.grid[k,i])  ###### Check that this works!!!!!!!!!!
-            if updateNeeded:
-                self.grid[k,i].cell_updateProp()  # Is this necessary? Why?
-        
+            updateNeeded, extracted=matTrans.extractPoreFluid(self.grid[k,i])  ###### Check that this works!!!!!!!!!!
+            for i in extracted:
+                if i in self.extracts:
+                    self.extracts[k][i]+=extracted[i]
+                else:
+                    self.extracts[k][i]=extracted[i]
+            #if updateNeeded:
+            #    self.grid[k,i].cell_updateProp()  # Is this necessary? Why?
         # Differentiate the body if necessary (e.g., water from rock)
-        self.transportMaterial(k)
-        
+        self.transportMaterial(k,iceImp)
+
+        #### UPDATE CELL PROPERTIES
         # Update cell properties after differentiation
         if True: #updateNeeded:
             for i in range(0,self.nr):    
                 self.grid[k,i].cell_updateProp()
-        
+
+        #### TRANSFER HEAT
         # Do a thermal heat conduction step
         self.transferHeat(k)
+
+        #### UPDATE BULK PROPERTIES
         # Update the bulk properties of the full grid
         self.updateBulk(k)
         
@@ -476,18 +528,18 @@ class Planet:
             self.grid[k,i].Temp=self.grid[k,i].Temp+dT
     
     
-    def transportMaterial(self,time_step):
+    def transportMaterial(self,time_step,iceImp):
         '''
            This function decides if material needs to move. E.g., if fluid is beneath rock, differentiate it.
         '''
-        topB=0            # Top of the rock
+        topB=self.nr            # Top of the rock and ocean
         bottomB=0         # Bottom of the rock
-        iceBot=self.nr
-        for i in range(0,self.nr):
-            if self.grid[time_step,i].Celltype==cellTypes.MIXED:
-                topB=i    # find the top of the rocky mantle
-            if self.grid[time_step,i].Celltype==cellTypes.ICE:
-                break     # Stop looking if we reach ice
+        #iceBot=self.nr
+        #for i in range(0,self.nr):
+        #    if self.grid[time_step,i].Celltype==cellTypes.UNDIFF:  # THIS MUST BE WRONG!!!!!!!!!!!
+        #        topB=i    # find the top of the rocky mantle
+        #    if self.grid[time_step,i].Celltype==cellTypes.ICE:
+        #        break     # Stop looking if we reach ice
                 
             # Not necessary anymore? What if we eventually get to rock/metal differentiation?
             #if self.grid[time_step,i].Celltype==cellTypes.ROCK:
@@ -495,12 +547,13 @@ class Planet:
         
         # differentiate all cells beneath the ocean. Does this always need to be done? Only should be done after an equilibrium change?
         if topB>bottomB: #and topB<IceBot:
-            aqCopy, rockCopy, phaseDatCopy, phasesCopy=matTrans.differentiate(self.grid[time_step,:],topB,bottomB)
+            aqCopy, rockCopy, phaseDatCopy, phasesCopy=matTrans.differentiate(self.grid[time_step,:],topB,bottomB,iceImp)
             for i in range(0,topB): 
                 self.grid[time_step,i].RockComp=rockCopy[i]
                 self.grid[time_step,i].RockPhaseDat=phaseDatCopy[i]
                 self.grid[time_step,i].RockPhases=phasesCopy[i]
                 self.grid[time_step,i].AqComp=aqCopy[i]
+                #self.grid[time_step,i].OrgComp=orgCopy[i]
 
 
     def copyRockComp(self,k):
@@ -528,6 +581,9 @@ class Planet:
                 else:                    # if not, copy data from the nearest cell below with perplex data
                     self.grid[k,i].RockPhaseDat=self.grid[k,lastStep].RockPhaseDat.copy()
                     self.grid[k,i].RockPhases=self.grid[k,lastStep].RockPhases
+                    #self.grid[k,i].OrgComp=self.grid[k,lastStep].OrgComp.copy()
+                    #self.grid[k,i].MaxOrgTemp=self.grid[k,lastStep].MaxOrgTemp
+                    self.grid[k,i].lastEquil=self.grid[k,lastStep].lastEquil
                     
                     # Rescale the copied rock comosition to match the mass of the cell.
                     sumC=0
@@ -567,7 +623,7 @@ class Planet:
             i=i+1
     
 
-    def initialize_comp(self,name,initIceComp,initRockComp, initOrgComp, initRIComp, initTemp, initRho, initK, initCp):
+    def initialize_comp(self,name,initIceComp,initRockComp, initRIComp, initTemp, initRho, initK, initCp):
         '''
            Initializes the composition of the model
            TODO: Write better doc string
@@ -575,7 +631,8 @@ class Planet:
         self.name=name
         self.grid[0,0].IceComp=initIceComp
         self.grid[0,0].RockComp=initRockComp
-        self.grid[0,0].OrgComp=initOrgComp
+        #self.grid[0,0].OrgComp=initOrgComp
+        #self.grid[0,0].OrigOrgMass=initOrgMass
         self.grid[0,0].RIComp=initRIComp
         self.grid[0,0].Temp=initTemp
         self.grid[0,0].Dens=initRho
@@ -609,34 +666,83 @@ class Planet:
 
 
     ##### Plotting functions (ADD DOC STRINGS!)
- 
+
     def plotAttribute(self,att,tit):
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros((self.nt,self.nr))
         for i in range(self.nr):
             for j in range(self.nt):
                 data[j][i]=getattr(self.grid[j][i], att)
-        plt.figure(figsize=(10,6))
-        #print(np.shape(self.radii[0:-1]))
-        #print(np.shape(self.times))
-        #print(np.shape(self.grid))
-        plt.contourf(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data),100) # Fix to use correct radii
+        f=plt.figure(figsize=(10,6))
+
+        xi=self.times/Decay.YR/10**6
+        yi=self.radii[0:-1]/1000
+        zi=np.transpose(data)
+
+        CS1 = plt.contour( xi,yi,zi, 15, linewidths=2.0, colors='black', linestyles='dashed' )
+
+        # labels on a subset of the major contour lines
+        #labeled_levels = [ x for x in major_levels ]
+        #clabels = plt.clabel( CS1, labeled_levels, fmt='%.0f', fontsize=12 )
+        #for label in clabels:
+        #    label.set_rotation(-90)
+
+        CS3 = plt.contourf(xi,yi,zi, 500) #,vmin=vmin,vmax=vmax,cmap=JCmap) # Fix to use correct radii
         plt.colorbar()
-        plt.contour(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data),15, colors='k')
         plt.xlabel('Time (Myr)')
         plt.ylabel('Radius (km)')
         plt.title(tit)
+        return f
+        
+
+    def plotTemp(self,att,tit):
+        matplotlib.rcParams.update({'font.size': 22})
+        data = np.zeros((self.nt,self.nr))
+        for i in range(self.nr):
+            for j in range(self.nt):
+                data[j][i]=getattr(self.grid[j][i], att)
+        f=plt.figure(figsize=(10,6))
+        #print(np.shape(self.radii[0:-1]))
+        #print(np.shape(self.times))
+        #print(np.shape(self.grid))
+        vmin, vmax, JCmap = gmt_colormap()
+
+        major_levels = [*range(300, 2300, 100)]
+        #major_levels = [100,200,273] + major_levels
+        major_levels = [100,200] + major_levels
+        minor_levels = [ x for x in range(100, 1800, 25) if x not in major_levels ]
+        xi=self.times/Decay.YR/10**6
+        yi=self.radii[0:-1]/1000
+        zi=np.transpose(data)
+
+        CS1 = plt.contour( xi,yi,zi, levels=major_levels, linewidths=2.0, colors='black', linestyles='dashed' )
+
+        # labels on a subset of the major contour lines
+        labeled_levels = [ x for x in major_levels ]
+        clabels = plt.clabel( CS1, labeled_levels, fmt='%.0f', fontsize=12 )
+        for label in clabels:
+            label.set_rotation(-90)
+
+        CS2 = plt.contour( xi,yi,zi, levels=minor_levels, linewidths=1.0, colors='white', linestyles='dashed' )
+        CS3 = plt.contourf(xi,yi,zi, 500,vmin=vmin,vmax=vmax,cmap=JCmap) # Fix to use correct radii
+        plt.colorbar()
+        #plt.contour(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data),15, colors='k')
+        plt.xlabel('Time (Myr)')
+        plt.ylabel('Radius (km)')
+        plt.title(tit)
+        return f
         
     def plotAttributeLine(self,att,tit,radius,unit=1):
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros(self.nt)
         for j in range(self.nt):
             data[j]=getattr(self.grid[j][radius], att)
-        plt.figure(figsize=(10,6))
+        f=plt.figure(figsize=(10,6))
         plt.plot(self.times/Decay.YR/10**6,data*unit,100) # Fix to use correct radii
         plt.xlabel('Time (Myr)')
         plt.ylabel(tit)
         #print(data)
+        return f
     
     def plotDictAttribute(self,att,key,tit,unit=1):
         matplotlib.rcParams.update({'font.size': 22})
@@ -646,13 +752,14 @@ class Planet:
                 tempItem=getattr(self.grid[j][i], att)
                 if key in tempItem:
                     data[j][i]=tempItem[key]
-        plt.figure(figsize=(10,6))
+        f=plt.figure(figsize=(10,6))
         plt.contourf(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data)*unit,100) # Fix to use correct radii
         plt.colorbar()
         plt.contour(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data)*unit,15, colors='k')
         plt.xlabel('Time (Myr)')
         plt.ylabel('Radius (km)')
         plt.title(tit)
+        return f
         
     def plotDictAttributeMassScaled(self,att,key,tit,vmin,vmax,unit=1):
         matplotlib.rcParams.update({'font.size': 22})
@@ -662,13 +769,14 @@ class Planet:
                 tempItem=getattr(self.grid[j][i], att)
                 if key in tempItem:
                     data[j][i]=tempItem[key]/self.grid[j][i].Mass
-        plt.figure(figsize=(10,6))
+        f=plt.figure(figsize=(10,6))
         plt.contourf(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data)*unit,100, vmin=vmin,vmax=vmax) # Fix to use correct radii
         plt.colorbar()
         plt.contour(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data)*unit,15, colors='k')
         plt.xlabel('Time (Myr)')
         plt.ylabel('Radius (km)')
         plt.title(tit)
+        return f
     
     def plotDictAttributeLine(self,att,key,tit,radius,unit=1):
         matplotlib.rcParams.update({'font.size': 22})
@@ -678,41 +786,143 @@ class Planet:
             data[j]=0
             if key in tempItem:
                 data[j]=tempItem[key]
-        plt.figure(figsize=(10,6))
+        f=plt.figure(figsize=(10,6))
         plt.plot(self.times/Decay.YR/10**6,data*unit,100) # Fix to use correct radii
         plt.xlabel('Time (Myr)')
         plt.ylabel(tit)
         #print(data)
-        return plt.gca()
+        return f
    
-    def plotPhaseAssemblage(self,radius,LogScale=0):
+    def plotPhaseAssemblage(self,radius, minorPhases="test"):
         pP=dict()
+        
+        if minorPhases=="test":
+            minorPhases= ['F','Mica', 'Fsp', 'Sp', 'ky', 'Gt', 'trd', 'crst','Stlp','law','Pu','ank','Mica','Bio','Fsp','Sp']
+        
+        col_dict={"IOM":"#964B00",
+                  "IOM pyrolysates":"#5C4033",
+                  "minor phases":'skyblue',
+                  "gph: graphite":"#000000",
+                  "qtz: quartz":"#FFFFFF",
+                  "cb: carbonates":"#808080",
+                  "px: pyroxene":"#454B1B",
+                  "py: pyrite":"#FFD700",
+                  "po: pyrrhotite":"#E1C16E",
+                  "amph: amphibole":"#033220",
+                  "chl: chlorite":"#008080",
+                  "tlc: talc":"#D3D3D3",
+                  "pl: plagioclase":"#FF0000",
+                  "hem: hematite":"#b7410e",
+                  "mag: magnetite":"#5C4033",
+                  "sp: spinel":"#E6E6FA",
+                  "srp: serpentine":"#adb2a5",
+                  "su: sulfates":"#b0c4de",
+                  "phl: phlogopite":"#d53600",
+                  "tro: troilite":"#C0C0C0",
+                  "ol: olivine":"#9ab973"}
+
+        lab_dict={"IOM":"IOM",
+                  "IOMp":"IOM pyrolysates",
+                  "other":"minor phases",
+                  "gph":"gph: graphite",
+                  "q":"qtz: quartz",
+                  "Opx":"px: pyroxene",
+                  "Cpx":"px: pyroxene",
+                  "acm":"px: pyroxene",
+                  "pyr":"py: pyrite",
+                  "Po":"po: pyrrhotite",
+                  "tro":"tro: troilite",
+                  "trov":"po: pyrrhotite",
+                  "Amph":"amph: amphibole",
+                  "Chl":"chl: chlorite",
+                  "Tlc":"tlc: talc",
+                  "Do":"cb: carbonates",
+                  "Cc":"cb: carbonates",
+                  "dol":"cb: carbonates",
+                  "arag":"cb: carbonates",
+                  "Pl":"pl: plagioclase",
+                  "ab":"pl: plagioclase",
+                  "hem":"hem: hematite",
+                  "Ol":"ol: olivine",
+                  "Sp": "minor phases",#"sp: spinel",
+                  "Atg":"srp: serpentine",
+                  "glt":"srp: serpentine",
+                  "any":"su: sulfates",
+                  "naph":"phl: phlogopite",
+                  "Mag":"mag: magnetite"}
+
+
         for j in range(self.nt):
             phases=self.grid[j][radius].RockPhases
+            for i in range(len(phases)):
+                if "_rs" in phases[i]:
+                    phases[i]=phases[i].replace('_rs','')
+                if "_1" in phases[i]:
+                    phases[i]=phases[i].replace('_1','')
             for i in range(0,len(phases)):
-                if not phases[i]=="Bulk_rs":
-                    if phases[i] in pP:
-                        pP[phases[i]][j]=self.grid[j][radius].RockPhaseDat[i]["wt%"]
+                if not phases[i]=="Bulk":
+                    labT="other"
+                    if phases[i] not in minorPhases and phases[i] not in lab_dict:
+                        print(phases[i])
+                    if phases[i] in lab_dict:
+                        labT=lab_dict[phases[i]]
+                    if labT in pP:
+                        pP[labT][j]+=self.grid[j][radius].RockPhaseDat[i]["wt%"]
                     else:
-                        pP[phases[i]]=np.zeros(self.nt)
-                        pP[phases[i]][j]=self.grid[j][radius].RockPhaseDat[i]["wt%"]
-        
+                        pP[labT]=np.zeros(self.nt)
+                        pP[labT][j]=self.grid[j][radius].RockPhaseDat[i]["wt%"]
+            if "IOM" in self.grid[j][radius].RockComp:
+                if "IOM" in pP: 
+                    pP["IOM"][j]+=self.grid[j][radius].RockComp["IOM"]/self.grid[j][radius].Mass*100
+                else:
+                    pP["IOM"]=np.zeros(self.nt)
+                    pP["IOM"][j]=self.grid[j][radius].RockComp["IOM"]/self.grid[j][radius].Mass*100
+        sumM=np.zeros(self.nt)
+        for j in range(self.nt):
+            for i in pP:
+                if not i=="IOM":
+                    sumM[j]+=pP[i][j]
+        for j in range(self.nt):
+            if "IOM" in pP:
+                IOMp=pP["IOM"][j]
+            else:
+                IOMp=0
+            for i in pP:
+                if not i=="IOM":
+                    pP[i][j]=pP[i][j]/sumM[j]*(100-IOMp)
+
+                
         #x_values = list(pP.keys())
         #y_values_list = list(pP.values())
    
         #print(pP.values())
         #print(pP.keys())
 
-        plt.figure(figsize=(10,6))
-        plt.stackplot(self.times/Decay.YR/10**6,pP.values(),labels=pP.keys()) 
+
+
+        color_map=[]
+        for i in pP:
+            if i in col_dict:
+                color_map.append(col_dict[i])
+            else:
+                color_map.append(col_dict['minor phases'])
+       
+
+        f=plt.figure(figsize=(12,6))
+        plt.stackplot(self.times/Decay.YR/10**6,pP.values(),labels=pP.keys(),colors = color_map) 
         #plt.stackplot(x_values, y_values_list, labels=list(pP.keys()))
-        plt.legend(loc='upper left')
-        if LogScale==1:
-            plt.xscale("log")
+        plt.tight_layout(rect=[0, 0, 0.75, 1])
+        #if LogScale==1:
+        #    plt.xscale("log")
         plt.xlabel('Time (Myr)')
         plt.ylabel('Wt %')
         plt.title('Phase assemblage at %0.2f kms deep'%(self.radii[-1]-self.radii[radius]))
-        plt.show()
+        plt.tick_params(labelright=True, right=True)
+        plt.ylim([0,100])
+        plt.legend(bbox_to_anchor=(1.6, 1.0), loc='upper right',
+                   ncol=1, fancybox=True, shadow=True)
+        #plt.show()
+        return f
 
 
 
