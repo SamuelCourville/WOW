@@ -6,29 +6,39 @@ class matTrans:
         nC=tC-bC
 
         aqAll = matTrans.grabWater(grid, nC)
+        aqAll = matTrans.AddImpurities(aqAll, addImp)
         rockCopy, phaseDatCopy, phasesCopy = matTrans.squishRocks(grid,nC)
         aqCopy= matTrans.distributeWater(grid,aqAll,rockCopy,nC)
-        matTrans.AddImpurities(aqCopy, addImp)
         #orgCopy = matTrans.checkOrgs(grid,nC)
         return aqCopy,rockCopy,phaseDatCopy,phasesCopy
 
     def AddImpurities(aqcopy,impurities):
+        if not aqcopy:
+            return {}
         M=0
         for i in impurities:
             M+=impurities[i]
+        aqcopy["H2O"]=aqcopy["H2O"]-M
 
-        ind=0
-        for i in range(len(aqcopy)-1,0,-1):
-            if "H2O" in aqcopy[i] and aqcopy[i]["H2O"]>M:
-                ind=i
-                aqcopy[i]["H2O"]=aqcopy[i]["H2O"]-M
-                for j in impurities:
-                    if j in aqcopy[i]:
-                        aqcopy[i][j]+=impurities[j]
-                        #print(impurities[j])
-                    else:
-                        aqcopy[i][j]=impurities[j]
-                        #print(impurities[j])
+        for i in impurities:
+            if i in aqcopy:
+                aqcopy[i]+=impurities[i]
+            else:
+                aqcopy[i]=impurities[i]
+
+        return aqcopy
+        #ind=0
+        #for i in range(len(aqcopy)-1,0,-1):
+        #    if "H2O" in aqcopy[i] and aqcopy[i]["H2O"]>M:
+        #        ind=i
+        #        aqcopy[i]["H2O"]=aqcopy[i]["H2O"]-M
+        #        for j in impurities:
+        #            if j in aqcopy[i]:
+        #                aqcopy[i][j]+=impurities[j]
+        #                #print(impurities[j])
+        #            else:
+        #                aqcopy[i][j]=impurities[j]
+        #                #print(impurities[j])
 
 
 
@@ -230,7 +240,18 @@ class matTrans:
             gridC.RockPhases=np.delete(gridC.RockPhases,ind)
             del gridC.RockPhaseDat[ind]
         if "F_2_rs" in gridC.RockPhases:
-            print("found F_2, but no code to deal with it yet.")
+            indP = np.where(gridC.RockPhases=='F_2_rs')
+            ind = indP[0][0] # What is this garbage?
+            for i in ["H","C","Mg","Al","Si","S","Ca","Fe","O","Na","N"]:
+                if i in gridC.AqComp:
+                    gridC.AqComp[i]+=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                    ex[i]+=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                else:
+                    gridC.AqComp[i]=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+                    ex[i]=gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.getRockMass()
+            matTrans.removeRockEl(gridC,ind)
+            gridC.RockPhases=np.delete(gridC.RockPhases,ind)
+            del gridC.RockPhaseDat[ind]
         return bv, ex
 
     def removeRockEl(gcell,ind):

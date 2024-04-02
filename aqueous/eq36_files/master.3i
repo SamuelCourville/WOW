@@ -38,14 +38,14 @@
 |  [ ] (-3) Use O2(g) line in the aqueous basis species block                  |
 |  [ ] (-2) pe (pe units)      | 0.00000E+00| (pei)                            |
 |  [ ] (-1) Eh (volts)         | 0.00000E+00| (ehi)                            |
-|  [ ] ( 0) Log fO2 (log bars) |-5.00000E+01| (fo2lgi)                         |
-|  [x] ( 1) Couple (aux. sp.)  |H2(aq)                  | (uredox)             |
+|  [x] ( 0) Log fO2 (log bars) |-8.00000E+01| (fo2lgi)                         |
+|  [ ] ( 1) Couple (aux. sp.)  |H2(aq)                  | (uredox)             |
 |------------------------------------------------------------------------------|
 |Aqueous Basis Species/Constraint Species        |Conc., etc. |Units/Constraint|
 | (uspeci(n)/ucospi(n))                          | (covali(n))|(ujf3(jflgi(n)))|
 |------------------------------------------------------------------------------|
-|H+                                              | 0.01659E-00|Molality        |
-|H2(aq)                                          | 1.00000e-02|Molality        |
+|H+                                              | 1.00000E-07|Molality        |
+|H2(aq)                                          | 1.00000e-19|Molality        |
 |HCO3-                                           | 1.00000e-19|Molality        |
 |NH3(aq)                                         | 1.00000e-19|Molality        |
 |Al+++                                           | 1.00000E-19|Molality        |
@@ -59,7 +59,7 @@
 |SiO2(aq)                                        | 1.00000E-19|Molality        |
 |Ni++                                            | 1.00000E-19|Molality        |
 |HS-                                             | 1.00000E-19|Molality        |
-|O2(g)                                           | 1.00000E-19|Molality        |
+|O2(g)                                           | 0.00000E-00|Molality        |
 |------------------------------------------------------------------------------|
 * Valid jflag strings (ujf3(jflgi(n))) are:                                    *
 *    Suppressed          Molality            Molarity                          *

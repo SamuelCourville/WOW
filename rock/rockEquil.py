@@ -3,17 +3,21 @@ import rpy2.robjects as robjects
 import numpy as np
 from scipy.special import erf
 
+
+##### UPDATE THIS LINE
+rcrust_dir="/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/"
+mainDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
+
 #codeDir = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/"
-codeDir = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/code/"
-inputDir="/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects/WOW/Inputs/WOW.txt"
+codeDir = rcrust_dir+"code/"
+inputDir=rcrust_dir+"Projects/WOW/Inputs/WOW.txt"
 #inputDir="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
-mainScript="/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/code/main.r"
+mainScript=rcrust_dir+"code/main.r"
 #mainScript="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/main.r"
-rockEquilDir="/Users/samuelcourville/Documents/JPL/combinedModel/rock"
-fileRData = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects/WOW/WOW.RData"
+rockEquilDir=mainDir+"rock"
+fileRData = rcrust_dir+"Projects/WOW/WOW.RData"
 #fileRData = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/WOW.RData"
 
-mainDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
 
 
 def organicBreakdown(comp, org, p, t, prevOrgT):

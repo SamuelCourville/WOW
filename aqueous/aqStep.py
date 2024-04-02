@@ -1,4 +1,5 @@
 from eq36 import *
+import numpy as np
 
 class aqStep:
     def callAqRockEquil(rockDict, waterDict, press, temp, WR):
@@ -17,8 +18,13 @@ class aqStep:
         #    if i in waterDict:
         #        ElstoAdd[i]=waterDict[i]
         #        waterDict[i]=0
-        if False:#checkEQfileExist(name,ind):
-            pH, pH2, precip, aqSpec, aqGas, heat = runEq6(temp,press,waterDict,name,str(ind))
+        if temp<263:#checkEQfileExist(name,ind): # use FREZchem here for brine
+            aqSpec={}
+            aqGas={}
+            pH=np.nan
+            pH2=np.nan
+            precip={}
+            #pH, pH2, precip, aqSpec, aqGas, heat = runEq6(temp,press,waterDict,name,str(ind))
         else:
             innitEQfiles(name,str(ind)) 
             pH, pH2, precip, aqSpec, aqGas, heat = runEq36(temp,press,waterDict,name,str(ind))
@@ -45,13 +51,19 @@ class aqStep:
             AqCompNew["H"] = AqCompNew["H"]-mH
             mO = AqCompNew["O"]
             AqCompNew["O"]=0
-            AqCompNew["H2O"]=AqCompNew["H2O"]+mO+mH
+            if "H2O" in AqCompNew:
+                AqCompNew["H2O"]=AqCompNew["H2O"]+mO+mH
+            else:
+                AqCompNew["H2O"] = mO + mH
         else:
             mO = mFO*(AqCompNew["H"]+AqCompNew["O"])
             AqCompNew["O"] = AqCompNew["O"]-mO
             mH = AqCompNew["H"]
             AqCompNew["H"]=0
-            AqCompNew["H2O"]=AqCompNew["H2O"]+mO+mH
+            if "H2O" in AqCompNew:
+                AqCompNew["H2O"]=AqCompNew["H2O"]+mO+mH
+            else:
+                AqCompNew["H2O"] = mO + mH
 
         sumM2 = 0
         for i in AqCompNew:
@@ -68,6 +80,7 @@ class aqStep:
         IceComp={}
         AqCompNew={}
         frozen=False
+        heat = 0
         if temp<calcFreezePoint(AqComp):
             frozen=True
             IceComp["H2O"]=AqComp["H2O"]
@@ -75,7 +88,8 @@ class aqStep:
                 if not i=="H2O":
                     IceComp["H2O"]+=AqComp[i]
                     AqCompNew[i]=AqComp[i]
-        heat=0
+            IceMeltHeat = 334 * 1000  # J/kg
+            heat = IceComp["H2O"] * IceMeltHeat
         return heat, frozen, IceComp, AqCompNew
 
 
@@ -128,8 +142,8 @@ def extractpH2(dic):
 
 def runEq36(Temperature,Pressure,water,name,ind):
     ni=name+str(ind)
-    mH2  = 0.03 #10**-pH2 
-    mCl  = 0.01914  
+    mH2  = 0.0000000000 #10**-pH2
+    mCl  = 0.0001914
     ST=Temperature
     
     w=convert_WttoMol(water)

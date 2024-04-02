@@ -1,19 +1,21 @@
 import numpy as np
 
 class ThermalConduction:
-    def calcStep(Cp, K, rho, DR): # WRONG!
+    def calcStep(Cp, K, rho, DR, timeC): # WRONG!
+        if timeC<5*3.1558e+13: # 3myr
+            return 3.1558e+12 # debugging test
         alpha = K/(Cp*rho)
         DT = np.min(DR**2/alpha/3)
         return DT
 
-    def thermalCondStep(T,Cp,K,rho,Rads,k):
+    def thermalCondStep(T,Cp,K,rho,Rads,k,timeC):
         nc = len(T)
 
         C = Rads
         DR = np.diff(C,append=0)
         DR[-1]=DR[-2]
 
-        DT = ThermalConduction.calcStep(Cp,K,rho,DR)
+        DT = ThermalConduction.calcStep(Cp,K,rho,DR,timeC)
 
         D=np.zeros((nc,3))
 

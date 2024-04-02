@@ -1,5 +1,14 @@
 import csv
 
+##### UPDATE THIS LINE
+main_dir="/Users/samuelcourville/Documents/JPL/combinedModel/"
+
+
+lookup_dir=main_dir+"tables/perplex_lookup.csv"
+k_dir=main_dir+"tables/k.csv"
+cp_dir=main_dir+"tables/Cp.csv"
+rho_dir=main_dir+"tables/rho.csv"
+
 
 class LookupProps:
     def calcThermalCond(P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
@@ -143,7 +152,7 @@ class LookupProps:
 
     def crossRef(spec):
         spec = spec[:-3] # removes '_rs' from perplex name 
-        cross_dict=LookupProps.read_2col_csv_to_dict("/Users/samuelcourville/Documents/JPL/combinedModel/tables/perplex_lookup.csv")
+        cross_dict=LookupProps.read_2col_csv_to_dict(lookup_dir)
         if spec in cross_dict:
             key = cross_dict[spec]
         else:
@@ -152,15 +161,15 @@ class LookupProps:
         return key
 
     def getTcondCoeffs(key):
-        coDict=LookupProps.read_Ncol_csv_to_dict("/Users/samuelcourville/Documents/JPL/combinedModel/tables/k.csv")
+        coDict=LookupProps.read_Ncol_csv_to_dict(k_dir)
         return coDict[key]
 
     def getCpCoeffs(key):
-        coDict=LookupProps.read_Ncol_csv_to_dict("/Users/samuelcourville/Documents/JPL/combinedModel/tables/Cp.csv")
+        coDict=LookupProps.read_Ncol_csv_to_dict(cp_dir)
         return coDict[key]
 
     def getRhoCoeffs(key):
-        coDict=LookupProps.read_Ncol_csv_to_dict("/Users/samuelcourville/Documents/JPL/combinedModel/tables/rho.csv")
+        coDict=LookupProps.read_Ncol_csv_to_dict(rho_dir)
         return coDict[key]
 
     def read_2col_csv_to_dict(file_path):

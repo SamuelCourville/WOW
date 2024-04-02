@@ -9,8 +9,13 @@ import sys
 import os
 import argparse
 
+
+##### UPDATE THIS LINE
+main_dir="/Users/samuelcourville/Documents/JPL/combinedModel/"
+
+
 #script_dir = os.path.abspath(os.path.dirname(__file__)) + '/'
-script_dir="/Users/samuelcourville/Documents/JPL/combinedModel/plotting/"
+script_dir=main_dir+"plotting/"
 
 def gmt_colormap( cptfile=script_dir + 'JC_colormap.cpt' ):
     df = pd.read_csv(cptfile,

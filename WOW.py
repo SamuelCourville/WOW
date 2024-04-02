@@ -90,6 +90,7 @@ class gridCell:
         self.lastEquil=0      # Last quilibration temperature
         self.lastEnthalpy=0   # Last enthalpy of formation for the mineral phase assemblage (J/kg)
         self.latentHeat=0     # A buffer to store latent heat that must be resolved (J)
+        self.latentFreeze=0   # A buffer to store latent heat from freezing (J)
         self.HtoAdd=0         # Extra heat to add (K)
         self.doUpdate=0       # Flag to decide whether or not to reequilibrate aqueous component
 
@@ -155,7 +156,7 @@ class gridCell:
                 self.AqGas={}
                 self.AqMin={}
                 self.Celltype=cellTypes.ICE
-            if "H2O" in self.AqComp and not frozen: # I changed this to exclude temperature.
+            if "H2O" in self.AqComp and not frozen and eq36: # I changed this to exclude temperature.
                 newpH, newpH2, newMin,newAq,newGas,addH=aqStep.callAqEquil(self.AqComp, self.Press, self.Temp,name,self.ind)
                 self.AqSpec=newAq
                 self.pH=newpH
@@ -164,7 +165,8 @@ class gridCell:
                 self.AqMin=newMin
                 heat+=addH
                 self.doUpdate=0
-            heat+=heat2
+            #heat+=heat2
+            self.latentFreeze=heat2
             #if heat>0:
             #    self.latentHeat=-heat
  
@@ -279,6 +281,7 @@ class gridCell:
         self.TempStep=OldCell.TempStep
         self.lastEquil=OldCell.lastEquil
         self.latentHeat=OldCell.latentHeat
+        self.latentFreeze = OldCell.latentFreeze
         
     def calc_vol(self):
         '''
@@ -453,6 +456,7 @@ class Planet:
                     iceImp[ii]+=iceImpT[ii]
                 else:
                     iceImp[ii]=iceImpT[ii]
+            self.grid[k, i].reclassify()
         
         # For all cells that aren't on the perplex equilibration grid, copy values from the nearest equilibration step.
         self.copyRockComp(k)
@@ -501,7 +505,7 @@ class Planet:
         Rs = np.array([self.grid[k,i].Bot for i in range(0,self.nr)])      # Is this right??? Use average of top and bottom?
         
         # Do a thermal conduction step and calculate the time step
-        temp2, dtime = ThermalConduction.thermalCondStep(temp,Cp,Tcond,rho,Rs,k)
+        temp2, dtime = ThermalConduction.thermalCondStep(temp,Cp,Tcond,rho,Rs,k,self.times[k])
         
         # determine how to dstribute the temperature change from thermal conduction to account for latent heat.
         # This is not a good way to do it and should be fixed in the future. Currently, if heat is moved into a cell, the heat is first used 
@@ -510,6 +514,7 @@ class Planet:
         for i in range(0,self.nr):
             dT=temp2[i]-self.grid[k,i].Temp
             latentT=(self.grid[k,i].latentHeat/self.grid[k,i].Mass/self.grid[k,i].Cp)
+            latentF = (self.grid[k, i].latentFreeze / self.grid[k, i].Mass / self.grid[k, i].Cp)
             # this logic can be simplified:
             if dT>0:
                 if latentT>dT:
@@ -525,7 +530,24 @@ class Planet:
                 else:
                     dT=dT-latentT
                     self.grid[k,i].latentHeat=0
+            if dT<0 and latentF>0:
+                if latentF>abs(dT):
+                    self.grid[k, i].latentFreeze=self.grid[k, i].latentFreeze+(dT * self.grid[k, i].Mass * self.grid[k, i].Cp)
+                    #print(dT)
+                    dT=0
+                    #print(dT)
+                    #print(latentF)
+                else:
+                    #print(dT)
+                    dT=dT+latentF
+                    self.grid[k, i].latentFreeze = 0
+                    #print(dT)
+                    #print(latentF)
             self.grid[k,i].Temp=self.grid[k,i].Temp+dT
+            if self.grid[k,i].Celltype==cellTypes.FLUID and self.grid[k,i].Temp>273.15:
+                lostH=self.grid[k,i].Temp-273.15
+                self.grid[k,i+1].Temp+=lostH # Send heat upwards
+                self.grid[k, i].Temp=273.15
     
     
     def transportMaterial(self,time_step,iceImp):
@@ -589,6 +611,11 @@ class Planet:
                     sumC=0
                     for key in self.grid[k,lastStep].RockComp:
                         sumC += self.grid[k,lastStep].RockComp[key]
+                    #print(sumC)
+                    #print(lastStep)
+                    #print(self.grid[k,lastStep].RockComp)
+                    #print(self.grid[k, lastStep].AqComp)
+                    #print(self.grid[k, lastStep].IceComp)
                     for key in self.grid[k,lastStep].RockComp:
                         self.grid[k,i].RockComp[key]=self.grid[k,lastStep].RockComp[key]/sumC*self.grid[k,i].RockMass
         
@@ -791,7 +818,159 @@ class Planet:
         plt.xlabel('Time (Myr)')
         plt.ylabel(tit)
         #print(data)
+        return f,data
+
+    def multiplotDictAttributeLine(self,att,keys,tit,radius,unit=1):
+        matplotlib.rcParams.update({'font.size': 22})
+        f = plt.figure(figsize=(10, 6))
+        for key in keys:
+            data = np.zeros(self.nt)
+            for j in range(self.nt):
+                tempItem=getattr(self.grid[j][radius], att)
+                data[j]=0
+                if key in tempItem:
+                    data[j]=tempItem[key]
+            plt.plot(self.times/Decay.YR/10**6,data*unit,100,label=key) # Fix to use correct radii
+        plt.xlabel('Time (Myr)')
+        plt.ylabel(tit)
+        plt.legend()
+        #print(data)
         return f
+
+
+    def plotSimplePhases(self,radius,minorPhases="test"):
+        pP = dict()
+
+        if minorPhases=="test":
+            minorPhases= ["Bugoff"]
+
+        lab_dict = {"IOM": "IOM",
+                    "IOMp": "IOM pyrolysates",
+                    "other": "minor phases",
+                    "gph": "Graphite",
+                    "q": "Quartz",
+                    "Opx": "Anhydrous silicates",
+                    "Cpx": "Anhydrous silicates",
+                    "acm": "Anhydrous silicates",
+                    "pyr": "Sulfides",
+                    "Po": "Sulfides",
+                    "tro": "Sulfides",
+                    "lot": "Sulfides",
+                    "trov": "Sulfides",
+                    "Amph": "Hydrous silicates",
+                    "Chl": "Hydrous silicates",
+                    "Tlc": "Hydrous silicates",
+                    "Pu": "Hydrous silicates",
+                    "Do": "Carbonates",
+                    "Cc": "Carbonates",
+                    "cc": "Carbonates",
+                    "dol": "Carbonates",
+                    "arag": "Carbonates",
+                    "Pl": "Anhydrous silicates",
+                    "ab": "Anhydrous silicates",
+                    "hem": "Hematite",
+                    "gth": "Goethite",
+                    "Ol": "Anhydrous silicates",
+                    "Sp": "Magnetite",
+                    "Atg": "Hydrous silicates",
+                    "glt": "Hydrous silicates",
+                    "cen": "Anhydrous silicates",
+                    "ne": "Anhydrous silicates",
+                    "pren": "Anhydrous silicates",
+                    "en": "Anhydrous silicates",
+                    "liz": "Hydrous silicates",
+                    "any": "Sulfates",
+                    "naph": "Hydrous silicates",
+                    "cor": "Al Oxides",
+                    "Mag": "Carbonates",
+                    "Gt": "Al Oxides",
+                    "iron": "Iron",
+                    "mt": "Magnetite"}
+
+        col_dict = {"IOM": "#964B00",
+                    "IOM pyrolysates": "#5C4033",
+                    "minor phases": 'skyblue',
+                    "Graphite": "#000000",
+                    "Quartz": "#FFFFFF",
+                    "Carbonates": "#808080",
+                    "Anhydrous silicates": "#9ab973",
+                    "Sulfides": "#E1C16E",
+                    "Hydrous silicates": "#033220",
+                    "Hematite": "#b7410e",
+                    "Goethite": "#3b3b3b",
+                    "Magnetite": "#5C4033",
+                    "Al Oxides": "#9A2A2A",
+                    "Sulfates": "#b0c4de",
+                    "Iron": "#A9A9A9"}
+
+        for j in range(self.nt):
+            phases = self.grid[j][radius].RockPhases
+            for i in range(len(phases)):
+                if "_rs" in phases[i]:
+                    phases[i] = phases[i].replace('_rs', '')
+                if "_1" in phases[i]:
+                    phases[i] = phases[i].replace('_1', '')
+            for i in range(0, len(phases)):
+                if not phases[i] == "Bulk":
+                    labT = "other"
+                    if phases[i] not in minorPhases and phases[i] not in lab_dict:
+                        print(phases[i])
+                    if phases[i] in lab_dict:
+                        labT = lab_dict[phases[i]]
+                    if labT in pP:
+                        pP[labT][j] += self.grid[j][radius].RockPhaseDat[i]["wt%"]
+                    else:
+                        pP[labT] = np.zeros(self.nt)
+                        pP[labT][j] = self.grid[j][radius].RockPhaseDat[i]["wt%"]
+            if "IOM" in self.grid[j][radius].RockComp:
+                if "IOM" in pP:
+                    pP["IOM"][j] += self.grid[j][radius].RockComp["IOM"] / self.grid[j][radius].Mass * 100
+                else:
+                    pP["IOM"] = np.zeros(self.nt)
+                    pP["IOM"][j] = self.grid[j][radius].RockComp["IOM"] / self.grid[j][radius].Mass * 100
+        sumM = np.zeros(self.nt)
+        for j in range(self.nt):
+            for i in pP:
+                if not i == "IOM":
+                    sumM[j] += pP[i][j]
+        for j in range(self.nt):
+            if "IOM" in pP:
+                IOMp = pP["IOM"][j]
+            else:
+                IOMp = 0
+            for i in pP:
+                if not i == "IOM":
+                    pP[i][j] = pP[i][j] / sumM[j] * (100 - IOMp)
+
+        # x_values = list(pP.keys())
+        # y_values_list = list(pP.values())
+
+        # print(pP.values())
+        # print(pP.keys())
+
+        color_map = []
+        for i in pP:
+            if i in col_dict:
+                color_map.append(col_dict[i])
+            else:
+                color_map.append(col_dict['minor phases'])
+
+        f = plt.figure(figsize=(12, 6))
+        plt.stackplot(self.times / Decay.YR / 10 ** 6, pP.values(), labels=pP.keys(), colors=color_map)
+        # plt.stackplot(x_values, y_values_list, labels=list(pP.keys()))
+        plt.tight_layout(rect=[0, 0, 0.75, 1])
+        # if LogScale==1:
+        #    plt.xscale("log")
+        plt.xlabel('Time (Myr)')
+        plt.ylabel('Wt %')
+        plt.title('Phase assemblage at %0.2f kms deep' % (self.radii[-1] - self.radii[radius]))
+        plt.tick_params(labelright=True, right=True)
+        plt.ylim([0, 100])
+        plt.legend(bbox_to_anchor=(1.6, 1.0), loc='upper right',
+                   ncol=1, fancybox=True, shadow=True)
+        # plt.show()
+        return f
+
    
     def plotPhaseAssemblage(self,radius, minorPhases="test"):
         pP=dict()
@@ -813,13 +992,18 @@ class Planet:
                   "tlc: talc":"#D3D3D3",
                   "pl: plagioclase":"#FF0000",
                   "hem: hematite":"#b7410e",
+                  "gth: goethite":"#A9A9A9",
                   "mag: magnetite":"#5C4033",
                   "sp: spinel":"#E6E6FA",
                   "srp: serpentine":"#adb2a5",
                   "su: sulfates":"#b0c4de",
                   "phl: phlogopite":"#d53600",
                   "tro: troilite":"#C0C0C0",
-                  "ol: olivine":"#9ab973"}
+                  "ol: olivine":"#9ab973",
+                  "ens: enstatite":"#CC7722",
+                  "cor: corundum":"#e0115f",
+                  "Gt: garnet":"#9A2A2A",
+                  "Iron":"#A9A9A9"}
 
         lab_dict={"IOM":"IOM",
                   "IOMp":"IOM pyrolysates",
@@ -832,24 +1016,34 @@ class Planet:
                   "pyr":"py: pyrite",
                   "Po":"po: pyrrhotite",
                   "tro":"tro: troilite",
+                  "lot":"tro: troilite",
                   "trov":"po: pyrrhotite",
                   "Amph":"amph: amphibole",
                   "Chl":"chl: chlorite",
                   "Tlc":"tlc: talc",
                   "Do":"cb: carbonates",
                   "Cc":"cb: carbonates",
+                  "cc": "cb: carbonates",
                   "dol":"cb: carbonates",
                   "arag":"cb: carbonates",
                   "Pl":"pl: plagioclase",
                   "ab":"pl: plagioclase",
                   "hem":"hem: hematite",
+                  "gth": "gth: goethite",
                   "Ol":"ol: olivine",
-                  "Sp": "minor phases",#"sp: spinel",
+                  "Sp":"sp: spinel",
                   "Atg":"srp: serpentine",
                   "glt":"srp: serpentine",
+                  "cen":"ens: enstatite",
+                  "pren": "ens: enstatite",
+                  "en": "ens: enstatite",
+                  "liz": "srp: serpentine",
                   "any":"su: sulfates",
                   "naph":"phl: phlogopite",
-                  "Mag":"mag: magnetite"}
+                  "cor":"cor: corundum",
+                  "Mag":"cb: carbonates",#"mag: magnetite",
+                  "Gt":"Gt: garnet",
+                  "iron":"Iron"}
 
 
         for j in range(self.nt):
@@ -976,18 +1170,17 @@ def molMass2elMass(molDic):
 
 ######### To be omitted
 
-
-def callAqFreeze(waterDict, iceDict, press, temp):
-    heat = 0
-    frozen=0
-    IceMeltHeat=334*1000 #J/kg
-    if temp<273.15:
-        if 'H2O' in waterDict:
-            iceDict['H2O']=waterDict['H2O']
-            heat=waterDict["H2O"]*IceMeltHeat
-            waterDict['H2O']=0
-            frozen=1
-    return heat,frozen
+#def callAqFreeze(waterDict, iceDict, press, temp):
+#    heat = 0
+#    frozen=0
+#    IceMeltHeat=334*1000 #J/kg
+#    if temp<273.15:
+#        if 'H2O' in waterDict:
+#            iceDict['H2O']=waterDict['H2O']
+#            heat=waterDict["H2O"]*IceMeltHeat
+#            waterDict['H2O']=0
+#            frozen=1
+#    return heat,frozen
     
 def callIceEquil(IceDict, waterDict, press, temp):
     heat = 0

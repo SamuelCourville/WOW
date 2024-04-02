@@ -6,15 +6,23 @@ import decimal
 import matplotlib.pyplot as plt
 
 
-eq36_dir="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq3_6/bin/"
+
+##### UPDATE THIS LINE
+modDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
+
+
+
+
+
+eq36_dir=modDir+"aqueous/eq3_6/bin/"
 eq3_ex=eq36_dir+"eq3nr"
 eq6_ex=eq36_dir+"eq6"
 
-eq36_db_dir="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq3_6/db/alphja39DBs/"
+eq36_db_dir=modDir+"aqueous/eq3_6/db/alphja39DBs/"
 
-eqFileLoc="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/"
-eq6master="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/master.6i"
-eq3master="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/master.3i"
+eqFileLoc=modDir+"aqueous/eq36_files/"
+eq6master=modDir+"aqueous/eq36_files/master.6i"
+eq3master=modDir+"aqueous/eq36_files/master.3i"
 #eq6file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6i"
 #eq3file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.3i"
 #eq6ofile="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6o"
@@ -279,7 +287,8 @@ def executeEQ6(tempK,Pa,name,ind):
     db1kb="1kb.d1"
     db2kb="2kb.d1"
     db5kb="5kb.d1"
-    pwd="/Users/samuelcourville/Documents/JPL/combinedModel/" #dangerous!
+    #pwd="/Users/samuelcourville/Documents/JPL/combinedModel/" # dangerous!
+    pwd=modDir
     
     dbStr='5kb.d1'
     if P<500:
@@ -319,8 +328,9 @@ def runModel(tempK,Ppascal,name,ind):
     db1kb="1kb.d1"
     db2kb="2kb.d1"
     db5kb="5kb.d1"
-    pwd="/Users/samuelcourville/Documents/JPL/combinedModel/"
+    #pwd="/Users/samuelcourville/Documents/JPL/combinedModel/"
     #pwd="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/"
+    pwd = modDir
     
     dbStr='5kb.d1'
     if P<500:
@@ -464,7 +474,7 @@ def updateSpecialReactantElement(El,value,fname):
             lines = file.readlines()
         
         for i, line in enumerate(lines):
-            if "|--->|"+El in line and "(uesri(i,n), cesri(i,n))" in line:
+            if "|--->|"+El+" " in line and "(uesri(i,n), cesri(i,n))" in line:
 
                 # Replace the numeric value with the new value
                 if len(El)>1:
