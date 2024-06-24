@@ -66,6 +66,7 @@ class gridCell:
         self.fO2=0            # fO2 (e.g., redox state) of the fluid component  
         self.AqComp = dict()  # A dictionary to store the elemental composition of the aqueous component
         self.AqSpec = dict()  # A dictionary to store the aqueous speciation of the aqueous composition
+        self.AqAct = dict()  # A dictionary to store the aqueous speciation of the aqueous composition
         self.AqMin = dict()   # A dictionary to store the precipitated minerals of the aqueous composition
         self.AqGas = dict()   # A dictionary to store the aqueous gasses of the aqueous composition
         self.AqMass=0         # A helper variable to store just the mass of the aqueous component
@@ -151,14 +152,16 @@ class gridCell:
                 self.IceComp=newIceComp
                 self.AqComp={}
                 self.AqSpec={}
+                self.AqAct={}
                 self.pH=np.nan
                 self.pH2=np.nan
                 self.AqGas={}
                 self.AqMin={}
                 self.Celltype=cellTypes.ICE
             if "H2O" in self.AqComp and not frozen and eq36: # I changed this to exclude temperature.
-                newpH, newpH2, newMin,newAq,newGas,addH=aqStep.callAqEquil(self.AqComp, self.Press, self.Temp,name,self.ind)
+                newpH, newpH2, newMin,newAq, newAct, newGas,addH=aqStep.callAqEquil(self.AqComp, self.Press, self.Temp,name,self.ind)
                 self.AqSpec=newAq
+                self.AqAct = newAct
                 self.pH=newpH
                 self.pH2=newpH2
                 self.AqGas=newGas
@@ -252,6 +255,7 @@ class gridCell:
         self.Celltype = OldCell.Celltype
         self.AqComp = OldCell.AqComp.copy()
         self.AqSpec = OldCell.AqSpec.copy()
+        self.AqAct = OldCell.AqAct.copy()
         self.AqMin = OldCell.AqMin.copy()
         self.AqGas = OldCell.AqGas.copy()
         self.pH=OldCell.pH

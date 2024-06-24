@@ -5,7 +5,7 @@
 ###############
 # Location of project files
 working_file<-"WOW"
-projects_directory<-"/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects"
+projects_directory<-"/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/Projects"
 
 ###############
 #
@@ -22,7 +22,7 @@ y_n<-1
 #
 ###############
 pt_def<-"input"                         #input,file
-pt_definitions<-list("{1;1}_{1;1}"=c("1.390462063480428+0*y_i","413.219104977757+0*x_i"))
+pt_definitions<-list("{1;1}_{1;1}"=c("1.9808862976804829+0*y_i","734.8731169334188+0*x_i"))
 
 ###############
 #
@@ -37,7 +37,7 @@ calculate_traces<-FALSE
 apply_trace_correction<-"None"
 kd_file<-"yak.kd"
 trace_elements<-c("")
-bulk_definitions<-c(list("{1;1}_{1;1}"=c("3.3329999999999997","0.0","32.6277","0.0","15.517600000000002","0.0","0.0","5.0295","43.4922","0.0","0.0","100")))
+bulk_definitions<-c(list("{1;1}_{1;1}"=c("0.03507239061558849","2.120720030094926","13.844347125641795","1.2797454747619583","14.664065750748364","7.598694765964717","1.3119284230917279","26.505497621511626","31.877003230692","0.7629251868773079","0.0","100")))
 bulk_file<-""
 
 ###############
@@ -71,7 +71,7 @@ cp_phases_<-c("")
 #   Modelling Options
 #
 ###############
-thermodynamic_data_file<-"DEW17HP622ver_687_20191107.dat"
+thermodynamic_data_file<-"DEW17HP622ver_elements_687_20191107.dat"
 solution_models_file<-"solution_model_690.dat"
 meemum_path<-"meemum"
 perplex_option_file<-"perplex_option_687_20191118_v15.dat"
@@ -79,7 +79,7 @@ use_sol_models<-c("A-phase","Atg(PN)","B","cAmph(G)","Chl(W)","COH-Fluid","Cpx(H
 saturated_components<-""
 saturated_phase_components<-""
 independent_potential_fugacity_activity<-""
-exclude_phases<-c("faTL","foTL","fa8L","fo8L","fojL","fajL","qjL","q8L","hmjL","sil8L","ctjL","dijL","jdjL","h2oL","ma","rieb","acm_dqf","mic","wa","stv")
+exclude_phases<-c("faTL","foTL","fa8L","fo8L","fojL","fajL","qjL","q8L","hmjL","sil8L","ctjL","dijL","jdjL","h2oL","ma","rieb","acm_dqf","mic","wa","stv","herc","picr")
 calculate_activities<-FALSE
 phases_to_rename<-c("")
 G_pure_phases<-""

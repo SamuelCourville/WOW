@@ -27,8 +27,8 @@ class aqStep:
             #pH, pH2, precip, aqSpec, aqGas, heat = runEq6(temp,press,waterDict,name,str(ind))
         else:
             innitEQfiles(name,str(ind)) 
-            pH, pH2, precip, aqSpec, aqGas, heat = runEq36(temp,press,waterDict,name,str(ind))
-        return pH, pH2, precip, aqSpec, aqGas, heat
+            pH, pH2, precip, aqSpec, aqAct, aqGas, heat = runEq36(temp,press,waterDict,name,str(ind))
+        return pH, pH2, precip, aqSpec, aqAct, aqGas, heat
 
     def refactor_water(AqComp):
 
@@ -125,15 +125,16 @@ def runEq6(Temperature,Pressure,reacs,name,ind):
     executeEQ6(Temperature,Pressure,name,str(ind))
     N,Xi = numberOfSteps(ni)
     minerals = extractProduct(N,ni)
-    Aqs = extractAq(N,ni)
+    Aqs,Acts = extractAq(N,ni)
     Fugs = extractFug(N,ni)
     endAq = extractEnd(Aqs)
+    endActs = extractEnd(Acts)
     endMin = extractEnd(minerals)
     endFugs=extractEnd(Fugs)
     pH =extractpH(ni)
     pH2=extractpH2(Fugs)
     heat=1
-    return pH, pH2, endMin, endAq, endFugs, heat
+    return pH, pH2, endMin, endAq, endActs, endFugs, heat
 
 def extractpH2(dic):
     if 'H2(aq)' in dic:
@@ -154,9 +155,10 @@ def runEq36(Temperature,Pressure,water,name,ind):
     runModel(Temperature,Pressure,name,str(ind))
     N,Xi = numberOfSteps(ni)
     minerals = extractProduct(N,ni)
-    Aqs = extractAq(N,ni)
+    Aqs,Acts = extractAq(N,ni)
     Fugs = extractFug(N,ni)
     endAq = extractEnd(Aqs)
+    endActs = extractEnd(Acts)
     endMin = extractEnd(minerals)
     endFugs=extractEnd(Fugs)
     pH =extractpH(ni)
@@ -166,7 +168,7 @@ def runEq36(Temperature,Pressure,water,name,ind):
     for i in endMin:
         endMin[i]=(10**endMin[i])/55.55
  
-    return pH, pH2, endMin, endAq, endFugs, heat
+    return pH, pH2, endMin, endAq, endActs, endFugs, heat
 
 def convert_WttoMol(w):
     #Masses={"H":1,"C":12,"S":32,"N":28,"Mg":24.3,"Si":28.1,"Fe":55.8,"Ca":48.1,"Na":23,"Al":27,"K":39.1,"O":16,"H2O":18}

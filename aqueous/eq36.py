@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import os
 import decimal
+import platform
 import matplotlib.pyplot as plt
 
 
@@ -211,6 +212,7 @@ def extractSpecie(spec,N,name):
                     if spec in line:
                         splitLine = line.split()
                         mSpec[count]=np.float64(splitLine[1])
+                        #aSpec[count]=np.float64(splitLine[4])
                         printActive=0
                     
                 if "--- Major Species by Contribution to Aqueous Mass Balances ---" in line:
@@ -268,7 +270,10 @@ def extractpH(name):
     return mSpec
     
 def moveFile(file,fileLoc,newLoc):
-    status=os.system("mv "+fileLoc+file+" "+newLoc)
+    if platform.system() == "Windows":
+        status = os.system("move " + fileLoc + file + " " + newLoc)
+    else:
+        status=os.system("mv "+fileLoc+file+" "+newLoc)
 
 
 def executeEQ6(tempK,Pa,name,ind):
@@ -298,7 +303,10 @@ def executeEQ6(tempK,Pa,name,ind):
     elif P<2500:
         dbStr='2kb.d1'
 
-    status = os.system(eq6_ex +" "+eq36_db_dir+dbStr+" "+eq6ifile+" > /dev/null")
+    if platform.system() == "Windows":
+        status = os.system(eq6_ex +" "+eq36_db_dir+dbStr+" "+eq6ifile)
+    else:
+        status = os.system(eq6_ex + " " + eq36_db_dir + dbStr + " " + eq6ifile + " > /dev/null")
     moveFile(eq6file+".6o",pwd,eqFileLoc)
     moveFile(eq6file+".6tx",pwd,eqFileLoc)
     moveFile(eq6file+".6t",pwd,eqFileLoc)
@@ -340,11 +348,17 @@ def runModel(tempK,Ppascal,name,ind):
     elif P<2500:
         dbStr='2kb.d1'
 
-    status = os.system(eq3_ex +" "+eq36_db_dir+dbStr+" "+eq3ifile+" > /dev/null")
+    if platform.system() == "Windows":
+        status = os.system(eq3_ex +" "+eq36_db_dir+dbStr+" "+eq3ifile)
+    else:
+        status = os.system(eq3_ex + " " + eq36_db_dir + dbStr + " " + eq3ifile + " > /dev/null")
     moveFile(eqfile+".3p",pwd,eqFileLoc)
     moveFile(eqfile+".3o",pwd,eqFileLoc)
     copyPickup(eq6ifile,eq3pfile)
-    status = os.system(eq6_ex +" "+eq36_db_dir+dbStr+" "+eq6ifile+" > /dev/null")
+    if platform.system() == "Windows":
+        status = os.system(eq6_ex +" "+eq36_db_dir+dbStr+" "+eq6ifile)
+    else:
+        status = os.system(eq6_ex + " " + eq36_db_dir + dbStr + " " + eq6ifile + " > /dev/null")
     moveFile(eqfile+".6o",pwd,eqFileLoc)
     moveFile(eqfile+".6tx",pwd,eqFileLoc)
     moveFile(eqfile+".6t",pwd,eqFileLoc)
@@ -393,6 +407,7 @@ def updateRock(Q,S,C,K,N,L,B,F,P,Mn,CO2,CO,NH3,M,Fm,CH4,name):
 
 def extractAq(N,name):
     mAq = dict()
+    aAq = dict()
     countdown=0
     count=-1
     try:
@@ -405,9 +420,12 @@ def extractAq(N,name):
                     if np.size(splitLine)>0:
                         if splitLine[0] in mAq:
                             mAq[splitLine[0]][count]=np.float64(splitLine[1])
+                            aAq[splitLine[0]][count]=np.float64(splitLine[4])
                         else:
                             mAq[splitLine[0]]=np.zeros(N)*np.nan
                             mAq[splitLine[0]][count]=np.float64(splitLine[1])
+                            aAq[splitLine[0]] = np.zeros(N) * np.nan
+                            aAq[splitLine[0]][count] = np.float64(splitLine[4])
                     else:
                         countdown=0
                 if "--- Distribution of Aqueous Solute Species ---" in line:
@@ -416,7 +434,7 @@ def extractAq(N,name):
 
     except FileNotFoundError:
         print('sucks to suck')
-    return mAq
+    return mAq, aAq
 
 def extractFug(N,name):
     fugs = dict()

@@ -2,6 +2,7 @@ import os
 import rpy2.robjects as robjects
 import numpy as np
 from scipy.special import erf
+import platform
 
 
 ##### UPDATE THIS LINE
@@ -132,9 +133,14 @@ def copy_dict_entries(original_dict, keys_to_copy):
 
 def executeRCrust(pN):
     #os.chdir("/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/")
-    os.chdir(codeDir)
-    status = os.system("Rscript "+mainScript+" "+pN+" >/dev/null")
-    os.chdir(mainDir)
+    if platform.system()=="Windows":
+        os.chdir(codeDir)
+        status = os.system("Rscript "+mainScript+" "+pN)
+        os.chdir(mainDir)
+    else:
+        os.chdir(codeDir)
+        status = os.system("Rscript "+mainScript+" "+pN+" >/dev/null")
+        os.chdir(mainDir)
 
 def updateRCrustInput(fN,P,T,Comp):
     #line 16 and 17
