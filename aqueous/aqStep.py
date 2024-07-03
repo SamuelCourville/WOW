@@ -21,6 +21,7 @@ class aqStep:
         if temp<263:#checkEQfileExist(name,ind): # use FREZchem here for brine
             aqSpec={}
             aqGas={}
+            aqAct={}
             pH=np.nan
             pH2=np.nan
             precip={}

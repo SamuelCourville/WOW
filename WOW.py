@@ -223,14 +223,14 @@ class gridCell:
         # Return necessary flags for future equilibration steps
         return self.doUpdate, iceImp
  
-    def cell_updateProp(self):
+    def cell_updateProp(self, ks, rhos, cps, crossRef):
         '''
            Updates the physical and thermal properties of the cell, to be done after an equilibration step.
         '''
         if True: #self.doUpdate:
-            self.TCond=LookupProps.calcThermalCond(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
-            self.Cp= LookupProps.calcHeatCap(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
-            self.Dens=LookupProps.calcDens(self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
+            self.TCond=LookupProps.calcThermalCond(ks,crossRef,self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
+            self.Cp= LookupProps.calcHeatCap(cps,crossRef,self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
+            self.Dens=LookupProps.calcDens(rhos,crossRef,self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
         else: # attempt to save time, but no way for it to work
             self.TCond=LookupProps.TCondFun(self.TCondCo,self.Press,self.Temp)
             self.Cp=LookupProps.HeatCapFunc(self.CpCo,self.Press,self.Temp)
@@ -419,7 +419,11 @@ class Planet:
         self.Mass=0             # Total mass of planet. Should stay the same
         self.TempStep=Tstep     # How many degrees K does a cell have to change before instructing the cell to reequilibrate.
         self.eq36=0             # Flag to decide whether or not to do an ocean equilibration step.
-        self.extracts=[{}]*maxnt# Array of dictionaries to store extracted fluid at each time step 
+        self.extracts=[{}]*maxnt# Array of dictionaries to store extracted fluid at each time step
+        self.kTable= LookupProps.loadk()
+        self.rhoTable=LookupProps.loadrho()
+        self.cpTable=LookupProps.loadcp()
+        self.perpTable=LookupProps.loadperp()
 
     def timeStep(self,k):
         '''
@@ -484,7 +488,7 @@ class Planet:
         # Update cell properties after differentiation
         if True: #updateNeeded:
             for i in range(0,self.nr):    
-                self.grid[k,i].cell_updateProp()
+                self.grid[k,i].cell_updateProp(self.kTable,self.rhoTable,self.cpTable,self.perpTable)
 
         #### TRANSFER HEAT
         # Do a thermal heat conduction step

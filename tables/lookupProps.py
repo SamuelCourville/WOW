@@ -11,34 +11,47 @@ rho_dir=main_dir+"tables/rho.csv"
 
 
 class LookupProps:
-    def calcThermalCond(P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
+    def loadk():
+        coDict=LookupProps.read_Ncol_csv_to_dict(k_dir)
+        return coDict
+    def loadrho():
+        coDict = LookupProps.read_Ncol_csv_to_dict(rho_dir)
+        return coDict
+    def loadcp():
+        coDict = LookupProps.read_Ncol_csv_to_dict(cp_dir)
+        return coDict
+    def loadperp():
+        cross_dict = LookupProps.read_2col_csv_to_dict(lookup_dir)
+        return cross_dict
+
+    def calcThermalCond(ktab,crosstab,P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
             for h in rockComp:
-                key = LookupProps.crossRef('and_rs')
+                key = LookupProps.crossRef('and_rs',crosstab) ### WHAT IS THIS DOING???
                 wtsR_pre.append(rockComp[h]/M)
-                C = LookupProps.getTcondCoeffs(key)
+                C = LookupProps.getTcondCoeffs(key,ktab)
                 valsR_pre.append(LookupProps.TCondFunc(C,P,T))
         valsR=[]
         wtsR=[]
         for i,j in enumerate(RockPhases):
             if j not in ['Bulk_rs']:
-                key = LookupProps.crossRef(j)
-                C = LookupProps.getTcondCoeffs(key)
+                key = LookupProps.crossRef(j,crosstab)
+                C = LookupProps.getTcondCoeffs(key,ktab)
                 wtsR.append(RockPhaseDat[i]['wt%']/100)
                 valsR.append(LookupProps.TCondFunc(C,P,T))
         valsI=[]
         wtsI=[]
         for i,k in enumerate(IceComp):
             wtsI.append(IceComp[k]/M)
-            C = LookupProps.getTcondCoeffs("H2O") #Assumes everything is H2O! k)
+            C = LookupProps.getTcondCoeffs("H2O",ktab) #Assumes everything is H2O! k)
             valsI.append(LookupProps.TCondFunc(C,P,T))
         valsA=[]
         wtsA=[]
         for i,l in enumerate(AqComp):
             wtsA.append(AqComp[l]/M)
-            C = LookupProps.getTcondCoeffs("Liquid water") #WRONG! Assumes everything is water.
+            C = LookupProps.getTcondCoeffs("Liquid water",ktab) #WRONG! Assumes everything is water.
             valsA.append(LookupProps.TCondFunc(C,P,T))
         vals=valsR+valsI+valsA+valsR_pre
         wts=wtsR+wtsI+wtsA+wtsR_pre
@@ -49,14 +62,14 @@ class LookupProps:
         return tcond
 
 
-    def calcHeatCap(P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
+    def calcHeatCap(cptab,crosstab,P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
             for h in rockComp:
-                key = LookupProps.crossRef('and_rs')
+                key = LookupProps.crossRef('and_rs',crosstab)
                 wtsR_pre.append(rockComp[h]/M)
-                C = LookupProps.getCpCoeffs(key)
+                C = LookupProps.getCpCoeffs(key,cptab)
                 valsR_pre.append(LookupProps.HeatCapFunc(C,P,T))
         valsR=[]
         wtsR=[]
@@ -70,13 +83,13 @@ class LookupProps:
         wtsI=[]
         for i,k in enumerate(IceComp):
             wtsI.append(IceComp[k]/M)
-            C = LookupProps.getCpCoeffs("H2O") #Assumes water k)
+            C = LookupProps.getCpCoeffs("H2O",cptab) #Assumes water k)
             valsI.append(LookupProps.HeatCapFunc(C,P,T))
         valsA=[]
         wtsA=[]
         for i,l in enumerate(AqComp):
             wtsA.append(AqComp[l]/M)
-            C = LookupProps.getCpCoeffs("Liquid water") # Wrong! assumes everything is water
+            C = LookupProps.getCpCoeffs("Liquid water",cptab) # Wrong! assumes everything is water
             valsA.append(LookupProps.HeatCapFunc(C,P,T))
         vals=valsR+valsI+valsA+valsR_pre
         wts=wtsR+wtsI+wtsA+wtsR_pre
@@ -88,33 +101,33 @@ class LookupProps:
         return cp
 
 
-    def calcDens(P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
+    def calcDens(rhotab, crosstab, P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
             for h in rockComp:
-                key = LookupProps.crossRef('and_rs')
+                key = LookupProps.crossRef('and_rs', crosstab)
                 wtsR_pre.append(rockComp[h]/M)
-                C = LookupProps.getRhoCoeffs(key)
+                C = LookupProps.getRhoCoeffs(key,rhotab)
                 valsR_pre.append(LookupProps.rhoFunc(C,P,T))
         valsR=[]
         wtsR=[]
         for i,j in enumerate(RockPhases):
             if j not in ['Bulk_rs']:
-                key = LookupProps.crossRef(j)
+                key = LookupProps.crossRef(j,crosstab)
                 wtsR.append(RockPhaseDat[i]['wt%']/100)
                 valsR.append(RockPhaseDat[i]['Density(kg/m3)'])
         valsI=[]
         wtsI=[]
         for i,k in enumerate(IceComp):
             wtsI.append(IceComp[k]/M)
-            C = LookupProps.getRhoCoeffs("H2O") # assumes water
+            C = LookupProps.getRhoCoeffs("H2O",rhotab) # assumes water
             valsI.append(LookupProps.rhoFunc(C,P,T))
         valsA=[]
         wtsA=[]
         for i,l in enumerate(AqComp):
             wtsA.append(AqComp[l]/M)
-            C = LookupProps.getRhoCoeffs("Liquid water") # Wrong! assumes everything is water
+            C = LookupProps.getRhoCoeffs("Liquid water",rhotab) # Wrong! assumes everything is water
             valsA.append(LookupProps.rhoFunc(C,P,T))
         vals=valsR+valsI+valsA+valsR_pre
         wts=wtsR+wtsI+wtsA+wtsR_pre
@@ -150,9 +163,8 @@ class LookupProps:
             avgVal=avgVal+wts[i]*vals[i]
         return avgVal
 
-    def crossRef(spec):
-        spec = spec[:-3] # removes '_rs' from perplex name 
-        cross_dict=LookupProps.read_2col_csv_to_dict(lookup_dir)
+    def crossRef(spec,cross_dict):
+        spec = spec[:-3] # removes '_rs' from perplex name
         if spec in cross_dict:
             key = cross_dict[spec]
         else:
@@ -160,16 +172,13 @@ class LookupProps:
             key = "Sillicates"
         return key
 
-    def getTcondCoeffs(key):
-        coDict=LookupProps.read_Ncol_csv_to_dict(k_dir)
+    def getTcondCoeffs(key,coDict):
         return coDict[key]
 
-    def getCpCoeffs(key):
-        coDict=LookupProps.read_Ncol_csv_to_dict(cp_dir)
+    def getCpCoeffs(key,coDict):
         return coDict[key]
 
-    def getRhoCoeffs(key):
-        coDict=LookupProps.read_Ncol_csv_to_dict(rho_dir)
+    def getRhoCoeffs(key,coDict):
         return coDict[key]
 
     def read_2col_csv_to_dict(file_path):
