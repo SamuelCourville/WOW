@@ -1,4 +1,5 @@
 import csv
+import numpy as np
 
 ##### UPDATE THIS LINE
 main_dir="/Users/samuelcourville/Documents/JPL/combinedModel/"
@@ -29,7 +30,7 @@ class LookupProps:
         wtsR_pre=[]
         if len(RockPhases) == 0:
             for h in rockComp:
-                key = LookupProps.crossRef('and_rs',crosstab) ### WHAT IS THIS DOING???
+                key = LookupProps.crossRef('undiff_rs',crosstab) ### WHAT IS THIS DOING???
                 wtsR_pre.append(rockComp[h]/M)
                 C = LookupProps.getTcondCoeffs(key,ktab)
                 valsR_pre.append(LookupProps.TCondFunc(C,P,T))
@@ -45,7 +46,7 @@ class LookupProps:
         wtsI=[]
         for i,k in enumerate(IceComp):
             wtsI.append(IceComp[k]/M)
-            C = LookupProps.getTcondCoeffs("H2O",ktab) #Assumes everything is H2O! k)
+            C = LookupProps.getTcondCoeffs("Ice",ktab) #Assumes everything is H2O! k)
             valsI.append(LookupProps.TCondFunc(C,P,T))
         valsA=[]
         wtsA=[]
@@ -67,7 +68,7 @@ class LookupProps:
         wtsR_pre=[]
         if len(RockPhases) == 0:
             for h in rockComp:
-                key = LookupProps.crossRef('and_rs',crosstab)
+                key = LookupProps.crossRef('undiff_rs',crosstab)
                 wtsR_pre.append(rockComp[h]/M)
                 C = LookupProps.getCpCoeffs(key,cptab)
                 valsR_pre.append(LookupProps.HeatCapFunc(C,P,T))
@@ -100,13 +101,42 @@ class LookupProps:
         #print(cp) 
         return cp
 
+    def getRockDens(rhotab, crosstab, P,T,RockPhases,RockPhaseDat,M,rockComp):
+        valsR_pre=[]
+        wtsR_pre=[]
+        if len(RockPhases) == 0:
+            for h in rockComp:
+                key = LookupProps.crossRef('undiff_rs', crosstab)
+                wtsR_pre.append(rockComp[h]/M)
+                C = LookupProps.getRhoCoeffs(key,rhotab)
+                valsR_pre.append(LookupProps.rhoFunc(C,P,T))
+        valsR=[]
+        wtsR=[]
+        for i,j in enumerate(RockPhases):
+            if j not in ['Bulk_rs']:
+                key = LookupProps.crossRef(j,crosstab)
+                wtsR.append(RockPhaseDat[i]['wt%']/100)
+                valsR.append(RockPhaseDat[i]['Density(kg/m3)'])
+        vals = valsR + valsR_pre
+        wts = wtsR + wtsR_pre
+
+        wts=wts/np.sum(wts)
+
+        nE = len(vals)
+        vol = 0
+        for i in range(nE):
+            vol = vol + wts[i] / vals[i]
+        if vol==0:
+            return 1.0
+        rho = 1.0 / vol
+        return rho
 
     def calcDens(rhotab, crosstab, P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
             for h in rockComp:
-                key = LookupProps.crossRef('and_rs', crosstab)
+                key = LookupProps.crossRef('undiff_rs', crosstab)
                 wtsR_pre.append(rockComp[h]/M)
                 C = LookupProps.getRhoCoeffs(key,rhotab)
                 valsR_pre.append(LookupProps.rhoFunc(C,P,T))
@@ -131,7 +161,15 @@ class LookupProps:
             valsA.append(LookupProps.rhoFunc(C,P,T))
         vals=valsR+valsI+valsA+valsR_pre
         wts=wtsR+wtsI+wtsA+wtsR_pre
-        rho = LookupProps.avgProps(vals,wts)
+
+        wts=wts/np.sum(wts)
+
+        nE = len(vals)
+        vol = 0
+        for i in range(nE):
+            vol=vol+wts[i]/vals[i]
+        rho = 1.0/vol
+        #rho = LookupProps.avgProps(vals,wts)
         #print('rho:')
         #print(vals)
         #print(wts)

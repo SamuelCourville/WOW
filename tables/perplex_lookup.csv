@@ -1,18 +1,19 @@
 ﻿Key,Map
+undiff,undiff
 Pu,Sillicates
 Pl_1,Sillicates
 Sp_1,Sillicates
 Opx_1,Sillicates
 Gt,Sillicates
-liz,Sillicates
+liz,Serpentine
 Cpx_1,Sillicates
 gth,Sillicates
 cc,Sillicates
-glt,Sillicates
+glt,Serpentine
 Pl,Sillicates
 trov,Sillicates
 Opx,Sillicates
-Atg,Sillicates
+Atg,Serpentine
 any,Sillicates
 cen,Sillicates
 Do,Sillicates
@@ -30,15 +31,15 @@ mpv,Sillicates
 lrn,Sillicates
 fwd,Sillicates
 Ring,Sillicates
-Chl,Sillicates
-Amph_1,Sillicates
-Amph,Sillicates
+Chl,Serpentine
+Amph_1,Serpentine
+Amph,Serpentine
 Cpx,Sillicates
 lot,Sillicates
 tro,Sillicates
 F_1,Liquid water
 F,Liquid water
-Tlc,Sillicates
+Tlc,Clays
 ak,Sillicates
 alm,Sillicates
 and,Sillicates

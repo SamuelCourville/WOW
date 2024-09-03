@@ -1,10 +1,11 @@
 ﻿Material,k0,k1,k2
-Water ice,0.4685,488.12,0
+undiff,0.5,0,0
+Ice,0.4685,488.12,0
 Clathrate,0.62,-0.000278,0
 IOM,0.2,0,0
-Sillicates,2,0,0
-Clays,2,0,0
-Serpentine,2,0,0
+Sillicates,1.1,600,0
+Clays,2.5,0,0
+Serpentine,2.5,0,0
 Liquid water,0.6,0,0
 Brine,0.6,0,0
 H2O,0.62,-0.000278,0

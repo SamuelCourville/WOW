@@ -3,6 +3,7 @@ import rpy2.robjects as robjects
 import numpy as np
 from scipy.special import erf
 import platform
+import re
 
 
 ##### UPDATE THIS LINE
@@ -12,6 +13,7 @@ mainDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
 #codeDir = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/"
 codeDir = rcrust_dir+"code/"
 inputDir=rcrust_dir+"Projects/WOW/Inputs/WOW.txt"
+outputDir=rcrust_dir+"Projects/WOW/Outputs/WOW_output_meemum.txt"
 #inputDir="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
 mainScript=rcrust_dir+"code/main.r"
 #mainScript="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/main.r"
@@ -66,24 +68,29 @@ def organicBreakdown(comp, org, p, t, prevOrgT):
     return comp, Norg, volatiles, newOrgT
 
 
-def rockEquil(Comp,P,T,prevOrgT):
+def rockEquil(Comp,AqComp,P,T,prevOrgT):
     if "IOM" in Comp:
         org = Comp["IOM"]
-    else: 
+    else:
         org=0
-    Comp,org,volatiles,newOrgT=organicBreakdown(Comp,org,P,T,prevOrgT)
-    diffComp={}    
+    #Comp2,org2,volatiles,newOrgT=organicBreakdown(Comp,org,P,T,prevOrgT)
+
 
     fN=inputDir
-    #fN="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
     RCrustProjName="WOW"
-    Pc = P/100000/1000 #convert to kbar
+    Pc = P/100000/1000 #convert from pascals to kbar
+
+    diffComp = {} # composition minus IOM
     sumComp = 0
     for key in Comp:    
         if not key=="IOM": #Ignore IOM component
             diffComp[key]=Comp[key]
-            sumComp += diffComp[key]
-    orgFrac=org/(sumComp)
+            sumComp += Comp[key]
+    for key in AqComp:
+        diffComp[key] += AqComp[key]
+        sumComp += AqComp[key]
+
+    orgFrac=org/(sumComp+org)
     if sumComp==0: # For debugging
         print(diffComp)
         print(Comp)
@@ -92,9 +99,17 @@ def rockEquil(Comp,P,T,prevOrgT):
     for key in diffComp:    
         diffComp[key] *= 100/sumComp
         if diffComp[key]<0: # WRONG!!!!!! Make a better fix. This should never be negative. But sometimes it is. Why?
-            diffComp[key]=0
+            print("Negative mass in rock equilibrate")
+            print(key)
+            print(diffComp[key])
+            print(error)
+
+
+
     updateRCrustInput(fN,Pc,T,diffComp)
     executeRCrust(RCrustProjName)
+
+
     ddicts, specs = extractRData()
     spec_list = list(specs)
     specAr = np.array(spec_list)
@@ -103,16 +118,34 @@ def rockEquil(Comp,P,T,prevOrgT):
     if "Bulk_rs" in specs:
         success=1
         indx=specs.index("Bulk_rs")
-        E = ddicts[indx]['Enthalpy (J/kg)']
+        #E = ddicts[indx]['Enthalpy (J/kg)']
+        E = getSolidEnthalpy(outputDir)
         newCompDict=copy_dict_entries(ddicts[indx],Comp.keys())
-        newCompDict["IOM"]=orgFrac*100
+        newCompDict["IOM"]= orgFrac*100
         for key in newCompDict:    
             newCompDict[key] *= (1/100)
+        for key in Comp:
+            newCompDict[key]=Comp[key]
+        for key in AqComp:
+            newCompDict[key]+=AqComp[key]
     else:
-        newCompDict={}
+        newCompDict=diffComp
         print("Perplex failed on input:")
         print(diffComp)
-    newCompDict=normalize_dictionary_values(newCompDict)
+
+    newCompDict = normalize_dictionary_values(newCompDict)
+    #for i in diffComp:
+    #    if abs(newCompDict[i]*100-diffComp[i])>0.01:
+    #        print("mass balance error rock equilibration")
+    #        print(diffComp)
+    #        print(newCompDict)
+    #        print(error)
+
+    newOrgT=T
+    volatiles={}
+
+    #E=0 # The enthalpy reported from perplex is super unstable, leading to issues. Need to think about how to fix.
+
     return newCompDict, ddicts, specAr, E, newOrgT, volatiles, success
 
 def normalize_dictionary_values(dictionary):
@@ -214,7 +247,40 @@ def replace_line_in_file(file_path, line_number, replacement_text, output_file_p
         print(f"Error: Line number {line_number} is out of range.")
 
 
+def find_line_in_file(file_path, search_string):
+    """
+    Reads a text file and returns the line that includes the specific string.
 
+    Parameters:
+    file_path (str): The path to the text file.
+    search_string (str): The string to search for in the file.
+
+    Returns:
+    str: The line containing the search string, or None if the string is not found.
+    """
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                if search_string in line:
+                    return line.strip()
+        return None
+    except FileNotFoundError:
+        return "File not found."
+
+def extract_scientific_notation(string):
+    match = re.search(r'[-+]?\d*\.\d+E[-+]?\d+', string)
+    if match:
+        return float(match.group(0))
+    else:
+        return None
+
+def getSolidEnthalpy(file_path):
+    search_string="Solid Enthalpy (J/kg)"
+    meemum_line=find_line_in_file(file_path, search_string)
+    if meemum_line is None:
+        meemum_line = find_line_in_file(file_path,"Enthalpy (J/kg)")
+    solid_enthalpy=extract_scientific_notation(meemum_line)
+    return solid_enthalpy
 
 
 
