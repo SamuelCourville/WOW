@@ -204,7 +204,7 @@ class gridCell:
                     self.pH2 = newpH2
                     self.AqGas = newGas
                     self.AqMin = newMin
-            if perplex and (self.Temp-self.lastEquil)>self.TempStep:
+            if perplex and self.Temp-self.lastEquil>self.TempStep:
                 tempRC,tempRPD,tempRP,E,NOT,vols,success=rockEquil(self.RockComp, self.AqComp, self.Press, self.Temp, self.MaxOrgTemp)
                 if success:
                     self.MaxOrgTemp=NOT
@@ -225,6 +225,9 @@ class gridCell:
                     self.doUpdate=1
                 else:
                     self.lastEquil=self.Temp # DEBUGGING HACK. GET RID OF
+            if self.Temp-self.lastEquil<-50: #get rid of hard coded number
+                self.doUpdate = 1
+                self.lastEquil = self.Temp
                 #print("perplexed")
         
         # Undifferentiated cell does not use thermodynamics to equilibrate. Melts at 273K. This should be improved.
