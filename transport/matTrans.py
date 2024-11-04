@@ -1,9 +1,16 @@
+# imports
 import numpy as np
 from aqStep import *
 
+# Class with functions to handle moving fluids
 class matTrans:
 
     def check_grid_mass_rock(grid,rockNew):
+        '''
+            Checks whether mass balance was conserved across rock cells after a mass transfer step.
+                grid - array of grid cells
+                rockNew - dictionary of rock compositions for each new cell
+        '''
         mOld=0
         mNew=0
         for i in range(0,len(grid)):
@@ -16,6 +23,11 @@ class matTrans:
         return False
 
     def check_grid_mass_water(grid,waterNew):
+        '''
+            Checks whether mass balance was conserved across fluid cells after a mass transfer step.
+                grid - array of grid cells
+                waterNew - dictionary of water compositions for each new cell
+        '''
         mOld=0
         mNew=0
         for i in range(0,len(grid)):
@@ -28,6 +40,14 @@ class matTrans:
         return False
 
     def differentiate(grid,tC,bC):
+        '''
+            Moves fluid above rock. If Fluid is found in a cell beneath a rock cell, it moves that fluid upward.
+            Unless that cell has porosity, in which case, this function only moves fluid if more than what would fit in
+            pore space.
+                grid - array of grid cells.
+                tC - top most cell to consider for differentiation (do I still need this?)
+                bC - bottom most cell to consider for differentiation (do I still need this?)
+        '''
         nC=tC-bC
 
         # Remove all water from Ceres.
@@ -40,21 +60,21 @@ class matTrans:
         # Distribute water in remaining cells.
         aqCopy= matTrans.distributeWater(grid,aqAll,rockCopy,nC)
         matTrans.check_grid_mass_water(grid, aqCopy)
-        #orgCopy = matTrans.checkOrgs(grid,nC)
+        #orgCopy = matTrans.checkOrgs(grid,nC)  # Organics not worling right now
         return aqCopy,rockCopy,phaseDatCopy,phasesCopy
 
     def AddImpurities(aqcopy,impurities):
-        #if not aqcopy:
-        #    return {}
+        '''
+            Used to add elements to an aq dictionary
+            When ice freezes in th ice shell, the remaining non-water elements are added to the fluid cell beneath.
+                aqcopy - dictionary of aq elements to add impurities to
+                impurities - Dictionary of elements remaining after ice shell freezing to add to fluid cell
+        '''
+
         M=0
         for i in impurities:
             M+=impurities[i]
-        #aqcopy["H"] = aqcopy["H"] - 1.0 / 9 * M
-        #aqcopy["O"] = aqcopy["O"] - 8.0 / 9 * M
 
-        #print("H then O")
-        #print(1.0/9*M)
-        #print(8.0/9*M)
 
         for i in impurities:
             if i in aqcopy:
@@ -64,22 +84,13 @@ class matTrans:
 
         impurities={}
         return aqcopy,impurities
-        #ind=0
-        #for i in range(len(aqcopy)-1,0,-1):
-        #    if "H2O" in aqcopy[i] and aqcopy[i]["H2O"]>M:
-        #        ind=i
-        #        aqcopy[i]["H2O"]=aqcopy[i]["H2O"]-M
-        #        for j in impurities:
-        #            if j in aqcopy[i]:
-        #                aqcopy[i][j]+=impurities[j]
-        #                #print(impurities[j])
-        #            else:
-        #                aqcopy[i][j]=impurities[j]
-        #                #print(impurities[j])
 
 
 
     def checkOrgs(grid,nC):
+        '''
+            Copies organic composition to new array
+        '''
         orgCopy=[{}]*nC
         for i in range(0,nC):
              if not grid[i].getRockMass()==0:
@@ -87,6 +98,9 @@ class matTrans:
         return orgCopy
 
     def grabWater(grid,nC):
+        '''
+            Loop through all grid cells and collect the total mass of fluid elements into one new dictionary
+        '''
         aqAll=dict()
         for i in range(0,nC):
             for j in grid[i].AqComp:
@@ -97,6 +111,12 @@ class matTrans:
         return aqAll
 
     def distributeWater(grid,aqAll,rockCopy,nC):
+        '''
+            Look for cells that don't have enough mass, and fill the gap with water
+                aqAll - all the fluid mass
+                rockCopy - grid cells with just rocks
+                nC - number of cells
+        '''
         nR = len(grid)
         aqCopy=[{}] * nR
         for i in range(0,nC):
@@ -116,20 +136,18 @@ class matTrans:
                 rockM+=rockCopy[i][j]
             cellM=grid[i].Mass-grid[i].getIceMass()
             if (cellM-rockM)>10000: # Why do I need a buffer here? Why is numerical precision a problem?
-                #print(i)
-                #print(cellM-rockM)
                 addM=cellM-rockM
                 for k in aqAll:
                     aqCopy[i][k]=weights[k]*addM
                     aqAll[k]=aqAll[k]-weights[k]*addM
-            #print(rockM)
-            #print(cellM)
-            #print(" ")
-        #print(bob)
         return aqCopy
 
     # Function to compress rocks after removing fluid. This is a mess
     def squishRocks(grid,nC):
+        '''
+            After extracting all the fluid, compress all rocks.
+                TODO - Think about how porosity is handled
+        '''
         nR = len(grid)          # number of cells
         rockCopy=[{}] * nR      # array of rock elemental abundances
         rockWeights=[{}] * nR   # dictionary of element mass fractions at each cell
@@ -138,9 +156,6 @@ class matTrans:
         rockM=[0] * nR          # rock masses, total mass of rock in each cell
         rockM3=[0] * nR         # rock masses
 
-        #print("before")
-        #print(grid[48].RockComp)
-        #print(rockM[48])
         # loop to collect rock mass data
         for i in range(nC):     # loop over cells
             rockCopy[i]=dict()
@@ -176,52 +191,32 @@ class matTrans:
             if missM < 0:
                 rockM[i]+=missM
                 missM=0
-            #if i==35:
-            #    print("after")
-            #    print(rockM[i])
-            #    print(missM)
-            #    print(cellM)
-            # loop of remaining cells to grab rock to fill missing mass
+
             for j in range(i+1,nC):
                 if rockM[j]>=missM:
                     for k in rockCopy[j]:
                         rockCopy[i][k]+=missM*rockWeights[j][k]
                         rockCopy[j][k]-=missM*rockWeights[j][k]
                         rockM[j]-=missM*rockWeights[j][k]
-                        #print(rockCopy[j][k])
-                    #print(rockCopy[i]["H"])
-                    #print("1")
-                    #print("")
-                    missM=0
+
                     break
                 if rockM[j]<missM:
-                    #print(rockCopy)
                     for k in rockCopy[j]:
                         rockCopy[i][k]+=rockCopy[j][k]
                         rockCopy[j][k]=0
                     missM=missM-rockM[j]
                     rockM[j]=0
-                    #print(rockCopy[i]["H"])
-                    #print("2")
-            #print(rockCopy[i]["H"])
-        #print(bob)
         rockM2=[0] * nR
         tempRI={}
         for i in range(nC):
             if grid[i].Celltype == 0:  # UNDIFF
                 for j in grid[i].RIComp:
                     tempRI[j]=grid[i].RIComp[j]
-            #print(grid[i].Mass)
             for j in rockCopy[i]:
                 rockM2[i]+=rockCopy[i][j]
-            #print(rockM2[i])
-            #print(" ")
             if rockM2[i]>0:
                 phaseDatCopy[i]=grid[i].RockPhaseDat.copy()
                 phasesCopy[i]=grid[i].RockPhases.copy()
-            #else:
-            #    phasesCopy[i]=grid[i].RockPhases.copy()
-            #    phaseDatCopy[i]=grid[i].RockPhaseDat.copy()
 
             if rockM3[i]>0:
                 RIfact=rockM2[i]/rockM3[i]
@@ -242,13 +237,14 @@ class matTrans:
 
             grid[i].reclassify()
 
-        #print("final")
-        #print(rockCopy[48])
         return rockCopy,phaseDatCopy,phasesCopy
 
 
 
     def differentiate_OLD(grid,topCell,bottom):
+        '''
+            obsolete
+        '''
         mr = np.zeros(topCell-bottom)
         mw = np.zeros(topCell-bottom)
         mC = np.zeros(topCell-bottom)
@@ -277,6 +273,10 @@ class matTrans:
         print(bob)
 
     def extractPoreFluid(gridC):
+        '''
+            Looks through rock phases predicted by Perple_X and finds fluid phases
+            Removes fluid phases from rock dictionary
+        '''
         ex={}#{"H":0,"C":0,"Mg":0,"Al":0,"Si":0,"S":0,"Ca":0,"Fe":0,"O":0,"Na":0,"N":0}
         bv=0
 
@@ -292,85 +292,66 @@ class matTrans:
                     if aToAdd>gridC.RockComp[i]:
                         aToAdd=gridC.RockComp[i]
 
-                    gridC.AqComp[i]+=aToAdd #gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.Mass
-                    gridC.RockComp[i]-=aToAdd #gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.Mass
+                    gridC.AqComp[i]+=aToAdd
+                    gridC.RockComp[i]-=aToAdd
 
                     if i in ex:
-                        ex[i]+=aToAdd #gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.Mass
+                        ex[i]+=aToAdd
                     else:
-                        ex[i]=aToAdd #gridC.RockPhaseDat[ind][i]/100*gridC.RockPhaseDat[ind]['wt%']/100*gridC.Mass
-                    #print(ex[i])
+                        ex[i]=aToAdd
                     if gridC.RockComp[i]<0:
                         print(i)
                         print(gridC.RockComp[i])
                         print("negative rock mass in extract pore fluid")
-                #matTrans.removeRockEl(gridC,ind)
                 gridC.RockPhases=np.delete(gridC.RockPhases,ind)
                 del gridC.RockPhaseDat[ind]
 
         return bv, ex
 
     def removeRockEl(gcell,ind):
+        '''
+            Remove element from rock dictionary. Obsolete?
+        '''
         Els = ["H","C","Mg","Al","Si","S","Ca","Fe","O","Na","N"]
         for i in Els:
-            #print("")
-            #print(i)
-            #print(gcell.RockComp[i])
             removeI = gcell.RockPhaseDat[ind][i]/100*gcell.RockPhaseDat[ind]['wt%']/100*gcell.getRockMass()
             gcell.RockComp[i]=gcell.RockComp[i]-removeI
-            #gcell.AqComp[i]=removeI
-            #print(removeI)
-            #print(gcell.RockComp[i])
 
     def overturn():
+        '''
+            Potential future function to handle density stratification or convection in rock or ice shell
+        '''
         return 1+1
 
     def grabMass(cellMass,Rmass,Wmass,water,rock,wi,ri):
+        '''
+            Obsolete?
+        '''
         tempMass=0
         wToAdd={}
         rToAdd={}
         while tempMass<(cellMass-cellMass*0.9999) and ri<len(Rmass):
             if Rmass[ri]<=(cellMass-tempMass):
-                #print('1111')
-                #print(ri)
-                #print(cellMass)
-                #print(Rmass[ri])
-                #print(rock[ri])
                 tempMass=tempMass+Rmass[ri]
                 Rmass[ri]=0
                 rToAdd=matTrans.addDicts(rToAdd,rock[ri])
                 rock[ri]={}
                 ri=ri+1
-                #print(ri)
-                #print(Rmass[ri-1])
-                #print(rock[ri-1])
             elif Rmass[ri]>(cellMass-tempMass):
-                #print('2222')
-                #print(ri)
-                #print(cellMass)
-                #print(Rmass[ri])
-                #print(rock[ri])
                 removeM=Rmass[ri]
                 Rmass[ri]=Rmass[ri]-(cellMass-tempMass)
                 removeM=removeM-Rmass[ri]
                 tempMass=tempMass+removeM
                 Rmasstemp,rock[ri]=matTrans.extractMass(rock[ri],removeM)
                 rToAdd=matTrans.addDicts(rToAdd,Rmasstemp)
-                #print(ri)
-                #print(Rmass[ri])
-                #print(rock[ri])
         while tempMass<(cellMass-cellMass*0.9999) and wi<len(Wmass):
             if Wmass[wi]<=(cellMass-tempMass):
-                #print('3')
                 tempMass=tempMass+Wmass[wi]
                 Wmass[wi]=0
                 wToAdd=matTrans.addDicts(wToAdd,water[wi])
                 water[wi]={}
                 wi=wi+1
             elif Wmass[wi]>(cellMass-tempMass):
-                #print('4')
-                #print(Wmass[wi])
-                #print(cellMass-tempMass)
                 removeW=Wmass[wi]
                 Wmass[wi]=Wmass[wi]-(cellMass-tempMass)
                 removeW=removeW-Wmass[wi]
@@ -383,6 +364,9 @@ class matTrans:
         return wToAdd, rToAdd, wi, ri
 
     def extractMass(dict,MtoRemove):
+        '''
+            Remove mass from a mass dictionary
+        '''
         sumMass = 0
         for i in dict:
             sumMass=sumMass+dict[i]
@@ -394,11 +378,17 @@ class matTrans:
         return dict2, dict
 
     def sumDictComps(dict):
+        '''
+            sum the elements of a dictionary together
+        '''
         sumMs=0
         for i in dict:
             sumMs += dict[i]
         return sumMs
         
     def addDicts(x,y):
+        '''
+            Add elements of two dictionaries together
+        '''
         return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
 

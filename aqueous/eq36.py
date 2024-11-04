@@ -14,32 +14,31 @@ modDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
 
 
 
-
+# File locations
 eq36_dir=modDir+"aqueous/eq3_6/bin/"
 eq3_ex=eq36_dir+"eq3nr"
 eq6_ex=eq36_dir+"eq6"
-
 eq36_db_dir=modDir+"aqueous/eq3_6/db/alphja39DBs/"
-
 eqFileLoc=modDir+"aqueous/eq36_files/"
 eq6master=modDir+"aqueous/eq36_files/master.6i"
 eq3master=modDir+"aqueous/eq36_files/master.3i"
-#eq6file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6i"
-#eq3file="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.3i"
-#eq6ofile="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.6o"
-#eq3pfile="/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq36_files/ariel.3p"
-
 
 ctx = decimal.Context()
 ctx.prec = 10
 
 
 def checkEQfileExist(name,ind):
+    '''
+        Make sure EQ6 input file exists before running
+    '''
     return os.path.isfile(eqFileLoc+name+str(ind)+".6i")
     
 
 
 def copy_text_file(original_file, copied_file):
+    '''
+        Copy a text file
+    '''
     try:
         with open(original_file, 'r') as original:
             # Read the contents of the original file
@@ -56,16 +55,25 @@ def copy_text_file(original_file, copied_file):
         print(f"An error occurred: {e}")
 
 def copyMasters(name,r):
+    '''
+        Copies the template EQ36 input files into new files specific for certain grid cells
+    '''
     #print("t1")
     copy_text_file(eq6master, eqFileLoc+name+str(r)+'.6i')
     copy_text_file(eq3master, eqFileLoc+name+str(r)+'.3i')
 
 def rename6p_to_6i(file6p,file6i):
+    '''
+        Change EQ6 pickup file to input file
+    '''
     #print("t2")
     copy_text_file(file6p, file6i)
 
 
 def updateTemp6i(temp,file6i):
+    '''
+        Update temperature in EQ6i file
+    '''
     #file6i = eq6file
     string = "|  [x] ( 0) Constant temperature:                                              |"
     scientific_notation = "{:.5e}".format(temp)
@@ -73,6 +81,9 @@ def updateTemp6i(temp,file6i):
     return replaceLine(file6i, string, stringReplace, 1)
 
 def updateTemp3i(temp,file3i):
+    '''
+        Update temperature in EQ3i file
+    '''
     #file3i = eq3file
     string = "|Temperature (C)         |"
     scientific_notation = "{:.5e}".format(temp)
@@ -80,6 +91,9 @@ def updateTemp3i(temp,file3i):
     return replaceLine(file3i, string, stringReplace, 0)
 
 def updatePress3i(P,file3i):
+    '''
+        Update pressure in EQ3i file
+    '''
     #file3i = eq3file
     string = "( 2) Value (bars)"
     scientific_notation = "{:.5e}".format(P)
@@ -87,6 +101,9 @@ def updatePress3i(P,file3i):
     return replaceLine(file3i, string, stringReplace, 0)
 
 def updatePress6i(P,file6i):
+    '''
+        Update pressure in EQ6i file
+    '''
     #file6i = eq6file
     string = "|  [x] ( 2) Constant pressure:                                                 |"
     scientific_notation = "{:.5e}".format(P)
@@ -95,6 +112,9 @@ def updatePress6i(P,file6i):
 
 
 def updateReactant3i(reactant, molality, name):
+    '''
+        Update reactant in EQ3i file
+    '''
     file3i = eqFileLoc+name+".3i"
     string = "|"+reactant
     scientific_notation = "{:.5e}".format(molality)
@@ -102,6 +122,9 @@ def updateReactant3i(reactant, molality, name):
     return replaceLine(file3i, string, stringReplace, 0)
 
 def updateReactant(reactant, moles,name):
+    '''
+        Update reactant in EQ6i file
+    '''
     file6i = eqFileLoc+name+".6i"
     string = reactant
     scientific_notation = "{:.5e}".format(moles)
@@ -111,6 +134,9 @@ def updateReactant(reactant, moles,name):
     return replaceLine(file6i, string, stringReplace, 6)
 
 def replaceLine(file, lineStart,lineReplace,endCount):
+    '''
+        Replace line in a text file
+    '''
     count = 0
     countStart=0
     out="not found"
@@ -140,6 +166,9 @@ def replaceLine(file, lineStart,lineReplace,endCount):
            
     
 def copyPickup(file6i,file3p):
+    '''
+        Copy pickup EQ3p file onto end of EQ6i file
+    '''
     lineStart = "* Start of the bottom half of the input file                                   *"
     flag3p = 0
     finput = fileinput.input(file6i, inplace=True)
@@ -163,6 +192,9 @@ def copyPickup(file6i,file3p):
     return
 
 def extractVal(searchFor, retCurr):
+    '''
+        Obsolete
+    '''
     if os.path.exists("tab"):
         fp = open("tab")
     else:
@@ -182,6 +214,9 @@ def extractVal(searchFor, retCurr):
     return("not found")
 
 def numberOfSteps(name):
+    '''
+        Return number of steps taken in EQ6 calculation
+    '''
     count=0
     Xi = np.array([0])
     printActive=0
@@ -202,6 +237,9 @@ def numberOfSteps(name):
     return count,Xi
 
 def extractSpecie(spec,N,name):
+    '''
+        Extract solute specie from EQ6 output
+    '''
     mSpec = np.zeros(N)
     count=-1
     try:
@@ -226,6 +264,9 @@ def extractSpecie(spec,N,name):
     return mSpec
         
 def extractProduct(N,name):
+    '''
+        Extract product mineral from EQ6 output
+    '''
     mSolids = dict()
     countdown=0
     count=-1
@@ -253,6 +294,9 @@ def extractProduct(N,name):
     return mSolids
 
 def extractpH(name):
+    '''
+        Extract pH from EQ6 output file
+    '''
     mSpec = np.array([])
     off=1
     try:
@@ -270,6 +314,9 @@ def extractpH(name):
     return mSpec
     
 def moveFile(file,fileLoc,newLoc):
+    '''
+        Move file to new location
+    '''
     if platform.system() == "Windows":
         status = os.system("move " + fileLoc + file + " " + newLoc)
     else:
@@ -277,6 +324,9 @@ def moveFile(file,fileLoc,newLoc):
 
 
 def executeEQ6(tempK,Pa,name,ind):
+    '''
+        Execute EQ6 input file
+    '''
     P = Pa*10**-5 # convert to bars
     temp=tempK-273.15
     
@@ -319,6 +369,9 @@ def executeEQ6(tempK,Pa,name,ind):
 
  
 def runModel(tempK,Ppascal,name,ind):
+    '''
+        Obsolete
+    '''
     P = Ppascal*10**-5 # convert to bars
     temp=tempK-273.15
     
@@ -370,24 +423,33 @@ def runModel(tempK,Ppascal,name,ind):
     return status
 
 def updateAQ(H2,Cl, dir):
+    '''
+        Update H2 and Cl in EQ3i file
+    '''
     updateReactant3i("H2(aq)", H2, dir)
-    #updateReactant3i("HCO3-", HCO3, dir)
-    #updateReactant3i("NH3(aq)", NH3, dir)
     updateReactant3i("Cl-", Cl, dir)
-    #updateReactant3i("Methanol(aq)", M, dir)
-    #updateReactant3i("Formaldehyde(aq)", F, dir)
 
 # MUST UPGRADE
 def updateReacts(rs,name):
+    '''
+        Update reactants. Obsolete?
+    '''
     for i in rs:
         if not i=="H2O":
             updateReactant(convert2EQ(i),rs[i],name)
 
 # MUST UPGRADE!!!!!
 def convert2EQ(name):
+    '''
+        Add (aq) to end of specie name
+    '''
     return name+"(aq)"
 
 def updateRock(Q,S,C,K,N,L,B,F,P,Mn,CO2,CO,NH3,M,Fm,CH4,name):
+    '''
+        Update specific reactants
+        Obsolete
+    '''
     updateReactant("Quartz", Q,name)
     updateReactant("H2S(aq)", S,name)
     updateReactant("Corundum", C,name)
@@ -406,6 +468,9 @@ def updateRock(Q,S,C,K,N,L,B,F,P,Mn,CO2,CO,NH3,M,Fm,CH4,name):
     updateReactant("Methane(aq)", CH4,name)
 
 def extractAq(N,name):
+    '''
+        Extract specie from EQ6 file
+    '''
     mAq = dict()
     aAq = dict()
     countdown=0
@@ -437,6 +502,9 @@ def extractAq(N,name):
     return mAq, aAq
 
 def extractFug(N,name):
+    '''
+        Extract gas fugacity from EQ6 file
+    '''
     fugs = dict()
     countdown=0
     count=-1
@@ -470,6 +538,9 @@ def extractFug(N,name):
     return fugs
 
 def extractEnd(diction):
+    '''
+        Extract last concentration value from an array of concentrations along EQ6 reaction output
+    '''
     ends = dict()
     for i in diction:
         ends[i]=diction[i][-1]
@@ -486,6 +557,9 @@ def float_to_str(f):
     return format(d1, 'f')
 
 def updateSpecialReactantElement(El,value,fname):
+    '''
+        Updates the elemental abundance of one element of an EQ6 special reactant
+    '''
     filename=fname
     try:
         with open(filename, 'r') as file:
@@ -511,6 +585,9 @@ def updateSpecialReactantElement(El,value,fname):
 
 # Obsoslete
 def reweightSpecialReactant(values,massW):
+    '''
+        Obsolete
+    '''
     newDict={}
     elD={"H":1,"C":12.01,"Mg":24.31,"Si":28.09,"Fe":55.85,"Ca":40.08,"Na":22.99,"Al":26.98,"K":39.10,"O":16,"S":32.07,"N":14.01}
     sumM=0
@@ -532,6 +609,9 @@ def reweightSpecialReactant(values,massW):
     
 
 def updateSpecialReactant(values,ni):
+    '''
+        Updates the elemental abundances of an EQ6 special reactant
+    '''
     name = eqFileLoc+ni+".6i"
     elementList=["H","C","S","N","Mg","Si","Fe","Ca","Na","Al","K","O"]
     #molVal, nMols=reweightSpecialReactant(values,massW) # DELETE
@@ -544,6 +624,9 @@ def updateSpecialReactant(values,ni):
 
 
 def updateSpecReactant(reactant, moles,name):
+    '''
+        Appendage of above function
+    '''
     file6i = name
     string = reactant
     scientific_notation = "{:.5e}".format(moles)

@@ -45,6 +45,9 @@ class Decay:
                   'Ca41':H0CA})
 
     def calcOriginAbund(abund,el):
+        '''
+        Given a present-day abundance of a radioisotope, calculates the abundance at the beginning of the solar system.
+        '''
         if el not in Decay.LAs:
             print("Element "+el+" not in radiosotope list.")
         LAel=Decay.LAs[el]
@@ -53,7 +56,19 @@ class Decay:
         
 
     def calcHeatProd(el,conc, cp, dt):
+        '''
+        Calculates the heat produced by the decay of a radioisotope
+            el: radioisotope (string, one of the isotopes in the above dictionaries)
+            conc: Current concentration of the isotope (fraction)
+            cp: heat capacity (J/kg/K)
+            dt: time step (seconds)
+        '''
         return (Decay.H0s[el]*conc/cp*dt)
         
     def calcDecayFrac(el,C0,time):
+        '''
+            el: radioisotope (string, one of the isotopes in the above dictionaries)
+            C0: concentration (fraction)
+            time: (seconds)
+        '''
         return C0*np.exp(-Decay.LN2*time/Decay.LAs[el])

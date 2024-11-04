@@ -2,7 +2,13 @@ from eq36 import *
 import numpy as np
 
 class aqStep:
+    '''
+        Class to handle aqueous equilibration functions
+    '''
     def callAqRockEquil(rockDict, waterDict, press, temp, WR, name, ind, M_Cl):
+        '''
+            Call EQ36 files with rock
+        '''
         #calcWR() 
         heat=0
         if waterDict["H"]>0 and waterDict["O"]>0:
@@ -13,6 +19,9 @@ class aqStep:
             return {}, {}, 0, 0, {}, {}
 
     def callAqEquil(waterDict,press,temp,name,ind, M_Cl):
+        '''
+            Call EQ36 files without rock
+        '''
         heat=0
         #ElstoAdd={}
         #elementList=["H","C","S","N","Mg","Si","Fe","Ca","Na","Al","K","O"]
@@ -35,6 +44,9 @@ class aqStep:
         return pH, pH2, precip, aqSpec, aqAct, aqGas, heat
 
     def inv_refactor_water(dict):
+        '''
+            Change H2O to H and O weight
+        '''
         mH2O=dict["H2O"]
         if "H" in dict:
             dict["H"] += 1 / 9 * mH2O
@@ -48,6 +60,10 @@ class aqStep:
         return dict
 
     def refactor_water(AqComp):
+        '''
+            Change H and O into H2O mass
+            TODO overly complicated. Need to simplify
+        '''
 
         sumM=0
         for i in AqComp:
@@ -97,6 +113,9 @@ class aqStep:
         return AqCompNew
 
     def simple_freeze(AqComp, IceCompNew, temp):
+        '''
+            Freeze water into ice
+        '''
         heat=0
         frozen=False
         IceMeltHeat = 334 * 1000  # J/kg
@@ -107,6 +126,9 @@ class aqStep:
 
     # implement Frezchem
     def freeze_complex(cell,AqComp,AqOriginal,IceComp,press,temp,name,ind):
+        '''
+            Freeze water into ice
+        '''
         AqCompNew={}
         frozen=False
         partial=False
@@ -165,6 +187,9 @@ class aqStep:
 
 
     def freeze(AqComp,AqOriginal,press,temp,name,ind):
+        '''
+            Obsolete
+        '''
         IceComp={}
         AqCompNew={}
         frozen=False
@@ -195,6 +220,9 @@ class aqStep:
 
 
 def calcFreezePoint(AqComp):
+    '''
+        Rough approximation of freezing point based on solute concentration
+    '''
     mols=convert_WttoMol(AqComp)
     tot=0
     for i in mols:
@@ -207,6 +235,9 @@ def calcFreezePoint(AqComp):
 
 
 def innitEQfiles(modelName,r):
+    '''
+        Initialize EQ36 files
+    '''
     copyMasters(modelName,r)
 
 
@@ -218,6 +249,9 @@ def innitEQfiles(modelName,r):
 
 # Need to extract heat if its worth it
 def runEq6(Temperature,Pressure,reacs,name,ind):
+    '''
+        Obsolete
+    '''
     ni=name+str(ind)
     ST=Temperature
     w=convert_WttoMol(reacs)
@@ -238,11 +272,17 @@ def runEq6(Temperature,Pressure,reacs,name,ind):
     return pH, pH2, endMin, endAq, endActs, endFugs, heat
 
 def extractpH2(dic):
+    '''
+        Extract pH2 from EQ36 output
+    '''
     if 'H2(aq)' in dic:
     	return -np.log10(dic['H2(aq)'])
     return 0
 
 def runEq36(Temperature,Pressure,water,name,ind,M_Cl):
+    '''
+        Run EQ36 files
+    '''
     ni=name+str(ind)
     mH2  = 0.0000000000 #10**-pH2
     mCl  = M_Cl
@@ -273,6 +313,9 @@ def runEq36(Temperature,Pressure,water,name,ind,M_Cl):
 
 
 def runEq36_rock(Temperature, Pressure, water, rock, WR, name, ind, M_Cl):
+    '''
+        Run EQ36 files with rock
+    '''
     ni = name + str(ind)
     mH2 = 0.0000000000
     mCl = M_Cl
@@ -323,6 +366,9 @@ def runEq36_rock(Temperature, Pressure, water, rock, WR, name, ind, M_Cl):
     return pH, pH2, endMin, endAq, endActs, endFugs, heat
 
 def convert_WttoMol(w):
+    '''
+        Convert wt. % to molality
+    '''
     #Masses={"H":1,"C":12,"S":32,"N":28,"Mg":24.3,"Si":28.1,"Fe":55.8,"Ca":48.1,"Na":23,"Al":27,"K":39.1,"O":16,"H2O":18}
     Masses={"H":1,"C":12.01,"Mg":24.31,"Si":28.09,"Fe":55.85,"Ca":40.08,"Na":22.99,"Al":26.98,"K":39.10,"O":16,"S":32.07,"N":14.01, "H2O":18}    
     newW={}
@@ -334,6 +380,9 @@ def convert_WttoMol(w):
     return newW      # yeah, this is wrong. Check molarity vs molality
 
 def convert_norm_wt_to_Mol(w):
+    '''
+        Convert normalized wt. % to molality
+    '''
     #Masses={"H":1,"C":12,"S":32,"N":28,"Mg":24.3,"Si":28.1,"Fe":55.8,"Ca":48.1,"Na":23,"Al":27,"K":39.1,"O":16,"H2O":18}
     Masses={"H":1,"C":12.01,"Mg":24.31,"Si":28.09,"Fe":55.85,"Ca":40.08,"Na":22.99,"Al":26.98,"K":39.10,"O":16,"S":32.07,"N":14.01}
     newW={}

@@ -1,9 +1,10 @@
+# Required packages
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-
 from molmass import Formula
 
+# import WOW helper files
 from decay import *
 from thermalConduction import *
 from aqStep import *
@@ -1467,18 +1468,6 @@ def molMass2elMass(molDic):
 
 
 ######### To be omitted
-
-#def callAqFreeze(waterDict, iceDict, press, temp):
-#    heat = 0
-#    frozen=0
-#    IceMeltHeat=334*1000 #J/kg
-#    if temp<273.15:
-#        if 'H2O' in waterDict:
-#            iceDict['H2O']=waterDict['H2O']
-#            heat=waterDict["H2O"]*IceMeltHeat
-#            waterDict['H2O']=0
-#            frozen=1
-#    return heat,frozen
     
 def callIceEquil(IceDict, waterDict, press, temp):
     heat = 0

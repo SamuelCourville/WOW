@@ -14,10 +14,14 @@ import argparse
 main_dir="/Users/samuelcourville/Documents/JPL/combinedModel/"
 
 
-#script_dir = os.path.abspath(os.path.dirname(__file__)) + '/'
+# Other file paths
 script_dir=main_dir+"plotting/"
 
 def gmt_colormap( cptfile=script_dir + 'JC_colormap.cpt' ):
+    '''
+        Code for Julie's colormap
+        From Julie
+    '''
     df = pd.read_csv(cptfile,
         delim_whitespace=True, #separator is whitespace
         header=None, #no header
@@ -51,14 +55,15 @@ def gmt_colormap( cptfile=script_dir + 'JC_colormap.cpt' ):
 
     newcmp = LinearSegmentedColormap('GMT_pal', segmentdata=cdict, N=11256)
 
-    # for c in cdict.keys():
-    #   print( c, cdict[c][0], cdict[c][1], '...', cdict[c][-2], cdict[c][-1] )
-    # sys.exit()
-
     return first, last, newcmp
 
 
 def load_data( infile='gmt.txt' ):
+    '''
+        Load data for plotting
+        Obsolete
+        From Julie
+    '''
 
     df = pd.read_csv(infile,
         delim_whitespace=True, #separator is whitespace
@@ -67,25 +72,16 @@ def load_data( infile='gmt.txt' ):
         names=['time_my','radius_km','K'], #set columns names
         )
 
-    # print( df )
-
     if True:
         # correct first samples ( given in meters while the rest is in km )
         print( max(df['radius_km']) )
         df['radius_km'] = df.apply( lambda r: r['radius_km'] / 1e3 if r['time_my'] == 0 else r['radius_km'], axis=1 )
         print( max(df['radius_km']) )
-    else:  # the fix below is bad - don't use
-        sys.exit()
-        # df.drop(df[df.radius_km > 10000].index, inplace=True )
-        df = df[df.radius_km.duplicated(keep=False)]  # remove rows with a radius_km value that show up only once (bad inout data)
-        # df.to_hdf( 'gmt.hd5', key='df' )
 
 
 
     df['radius_km'] = round( df['radius_km'], 1 )  # rounding to nearest 100m, in order to keep the number of rows manageable
 
-    # print( df )
-    # sys.exit()
 
 
     if True:
@@ -100,36 +96,21 @@ def load_data( infile='gmt.txt' ):
 
 
         plt.clf()
-        # ax = df.plot.scatter( x='time_my', y='radius_km', c='K', colormap='viridis' )
         ax = df.plot.scatter( x='time_my', y='radius_km', c='K', s=1, colormap=new_colormap, vmin=vmin, vmax=vmax )
         plt.savefig( 'gmt_datapoint.png' )
 
-        # sys.exit()
 
         plt.clf()
-        # ax = df.plot.scatter( x='time_my', y='radius_km', c='K', colormap='viridis' )
         ax = df.plot.scatter( x='time_my', y='radius_km', c='K', s=1, colormap=new_colormap, vmin=vmin, vmax=vmax )
         ax.set_xscale('log')
         plt.xlim( max( 1, min(df['time_my']) ), max(df['time_my']) )
         plt.savefig( 'gmt_datapoint_log.png' )
 
-        # sys.exit()
 
     print( df )
-    # sys.exit()
 
     pivoted = df.pivot( index='radius_km', columns='time_my', values='K')
 
-    # pivoted.to_hdf( 'gmt_pivoted.hd5', key='df' )
-    # print( pivoted )
-
-    # change = pivoted.diff(axis=1)
-    # print( change )
-
-    # change = pivoted.round(0).diff(axis=1)
-    # print( change )
-
-    # print( np.sqrt(np.square(change).sum(axis=0)) )
 
     remove_those_colums = []
     log_bin_count = 1000
@@ -149,6 +130,10 @@ def load_data( infile='gmt.txt' ):
 
 
 def make_plot( pivoted, outfile='gmt.png', title='EUROPA', cptfile=script_dir + 'GMT_pal.cpt' ):
+    '''
+        Make thermal plot
+        From Julie
+    '''
 
     zi = pivoted.to_numpy()
     xi = pivoted.columns.to_numpy()
@@ -200,47 +185,3 @@ def make_plot( pivoted, outfile='gmt.png', title='EUROPA', cptfile=script_dir + 
 
     plt.savefig( outfile, bbox_inches='tight' )
     plt.close()
-
-
-
-#def get_args():
-#    parser = argparse.ArgumentParser(description='Demo', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-#    parser.add_argument('--datafile', '-d', default='gmt.txt', help='file with 3 columns [ time_my, radius_km, K ]' )
-#    parser.add_argument('--outfile', '-o', default='gmt.png', help='output image' )
-#    parser.add_argument('--title', '-t', default='EUROPA', help='title of the plot' )
-#
-#    return parser.parse_args()
-
-
-#def main():
-
-#    args = get_args()
-
-#    pivoted = load_data( infile=args.datafile )
-
-#    # print( pivoted )
-
-#    if False:
-#        print( list(pivoted.index) )
-#        sys.exit()
-
-#    if False:
-#        print( pivoted.iloc[-15:-1, 30:40] )  # indices, columns
-#        sys.exit()
-
-#    if True:
-#        pivoted_interpolated = pivoted.interpolate( method='slinear' )
-
-
-#        # print( pivoted.iloc[1000:1010, 60:70] )
-#        # print( pivoted_interpolated.iloc[1000:1010, 60:70] )
-#        # sys.exit()
-#        pivoted = pivoted_interpolated
-
-
-
-#    make_plot( pivoted, outfile=args.outfile, title=args.title )
-
-
-#if __name__ == '__main__':
-#    main()

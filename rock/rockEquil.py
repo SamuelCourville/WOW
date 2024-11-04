@@ -10,20 +10,21 @@ import re
 rcrust_dir="/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/"
 mainDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
 
-#codeDir = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/"
+### other directories to execute RCrust and Perple_X
 codeDir = rcrust_dir+"code/"
 inputDir=rcrust_dir+"Projects/WOW/Inputs/WOW.txt"
 outputDir=rcrust_dir+"Projects/WOW/Outputs/WOW_output_meemum.txt"
-#inputDir="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/Inputs/WOW.txt"
 mainScript=rcrust_dir+"code/main.r"
-#mainScript="/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/main.r"
 rockEquilDir=mainDir+"rock"
 fileRData = rcrust_dir+"Projects/WOW/WOW.RData"
-#fileRData = "/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/Projects/WOW/WOW.RData"
 
 
 
 def organicBreakdown(comp, org, p, t, prevOrgT):
+    '''
+        This function will handle the temperature driven breakdown of insoluble organic matter.
+        Not complete yet
+    '''
     if t<prevOrgT:
         return comp, org, {}, prevOrgT
 
@@ -69,11 +70,13 @@ def organicBreakdown(comp, org, p, t, prevOrgT):
 
 
 def rockEquil(Comp,AqComp,P,T,prevOrgT):
+    '''
+        Executes Perple_X on grid cell's composition
+    '''
     if "IOM" in Comp:
         org = Comp["IOM"]
     else:
         org=0
-    #Comp2,org2,volatiles,newOrgT=organicBreakdown(Comp,org,P,T,prevOrgT)
 
 
     fN=inputDir
@@ -134,12 +137,7 @@ def rockEquil(Comp,AqComp,P,T,prevOrgT):
         print(diffComp)
 
     newCompDict = normalize_dictionary_values(newCompDict)
-    #for i in diffComp:
-    #    if abs(newCompDict[i]*100-diffComp[i])>0.01:
-    #        print("mass balance error rock equilibration")
-    #        print(diffComp)
-    #        print(newCompDict)
-    #        print(error)
+
 
     newOrgT=T
     volatiles={}
@@ -149,6 +147,9 @@ def rockEquil(Comp,AqComp,P,T,prevOrgT):
     return newCompDict, ddicts, specAr, E, newOrgT, volatiles, success
 
 def normalize_dictionary_values(dictionary):
+    '''
+        Normalize the values of a dictionary so that they sum to 1
+    '''
     # Calculate the sum of values in the dictionary
     total_sum = sum(dictionary.values())
     # Normalize the values so that they sum to 1
@@ -156,6 +157,9 @@ def normalize_dictionary_values(dictionary):
     return normalized_dict
 
 def copy_dict_entries(original_dict, keys_to_copy):
+    '''
+        Copy specific keys from one dictionary to a new one
+    '''
     new_dict = {}
     for key in keys_to_copy:
         if key in original_dict:
@@ -165,6 +169,9 @@ def copy_dict_entries(original_dict, keys_to_copy):
 
 
 def executeRCrust(pN):
+    '''
+        Execute an RCrust project input file
+    '''
     #os.chdir("/Users/samuelcourville/Documents/JPL/combinedModel/rock/Rcrust/code/")
     if platform.system()=="Windows":
         os.chdir(codeDir)
@@ -176,6 +183,9 @@ def executeRCrust(pN):
         os.chdir(mainDir)
 
 def updateRCrustInput(fN,P,T,Comp):
+    '''
+        Update and RCrust project input file
+    '''
     #line 16 and 17
     line16="x_n<-1"
     line17="y_n<-1"
@@ -208,6 +218,9 @@ def updateRCrustInput(fN,P,T,Comp):
 #
 
 def convert_rdata_list_to_dict(file_path):
+    '''
+        Converts the RCrust rdata output into a python dictionary
+    '''
     r = robjects.r
     r.load(file_path)
     r_mat = r['crust'][0][0]
@@ -215,26 +228,33 @@ def convert_rdata_list_to_dict(file_path):
     rowNames=r.rownames(r_mat)
     colNames=r.colnames(r_mat)
     
-    py_dicts = convert_float_matrix_to_dict(r_mat,colNames, rowNames)
+    py_dicts = convert_float_matrix_to_dict(r_mat, colNames, rowNames)
     return py_dicts, rowNames
 
 def convert_float_matrix_to_dict(float_matrix, colnames,rownames):
+    '''
+        Converts matrix of RCrust output into dictionary
+    '''
     ncol=len(colnames)
     nrow=len(rownames)
     data = list(float_matrix)
-    #print(rownames)
-    #print(data)
     result_dicts = [{colnames[j]: data[j*nrow+i] for j in range(0,ncol)} for i in range(nrow)]
     return result_dicts
 
 
 def extractRData():
+    '''
+        Extract Rdata from RCrust output file
+    '''
     RDataLoc = fileRData
     dataDict = convert_rdata_list_to_dict(RDataLoc)
     return dataDict
 
 
 def replace_line_in_file(file_path, line_number, replacement_text, output_file_path):
+    '''
+        Replaces a line in a file. Used to update input files.
+    '''
     with open(file_path, 'r') as file:
         lines = file.readlines()
 
@@ -268,6 +288,9 @@ def find_line_in_file(file_path, search_string):
         return "File not found."
 
 def extract_scientific_notation(string):
+    '''
+        extracts scientific notation
+    '''
     match = re.search(r'[-+]?\d*\.\d+E[-+]?\d+', string)
     if match:
         return float(match.group(0))
@@ -275,6 +298,9 @@ def extract_scientific_notation(string):
         return None
 
 def getSolidEnthalpy(file_path):
+    '''
+        Searches Perple_X output file to find solid enthalpy value
+    '''
     search_string="Solid Enthalpy (J/kg)"
     meemum_line=find_line_in_file(file_path, search_string)
     if meemum_line is None:
