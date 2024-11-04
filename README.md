@@ -1,6 +1,4 @@
-# WOW
-
-## Wow! Ocean Worlds.  
+# WOW  ---   Wow! Ocean Worlds.  
 
 ## Overview:  
 This numerical modeling framework simulates the thermal and compositional evolution of water-rich planetary bodies. It is designed for modeling ocean world interiors, incorporating water-rock reactions, mineral metamorphism, and ice freezing/melting.
