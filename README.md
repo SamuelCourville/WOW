@@ -8,16 +8,15 @@ This numerical modeling framework simulates the thermal and compositional evolut
 
 Installation instructions:
 
-WOW requires the following software:
-	    Python:
-		    required packages:
-			    - numpy  
-			    - scipy  
-			    - matplotlib  
-			    - rpy2  
-			    - pandas  
-			    - molmass  
-			    - Jupyter notebook: https://jupyter.org/install  
+WOW requires the following software:  
+	    Python with following packages:
+			    &emsp; - numpy  
+			    &emsp; - scipy  
+			    &emsp; - matplotlib  
+			    &emsp; - rpy2  
+			    &emsp; - pandas  
+			    &emsp; - molmass  
+			    &emsp; - Jupyter notebook: https://jupyter.org/install  
 	R: https://www.r-project.org/  
 	Rcrust: https://www.sun.ac.za/english/faculty/science/earthsciences/rcrust  
 	Perple_X: https://www.perplex.ethz.ch/  
