@@ -1,15 +1,15 @@
 # WOW
 
-Wow! Ocean Worlds.  
+## Wow! Ocean Worlds.  
 
-Overview:  
+## Overview:  
 This numerical modeling framework simulates the thermal and compositional evolution of water-rich planetary bodies. It is designed for modeling ocean world interiors, incorporating water-rock reactions, mineral metamorphism, and ice freezing/melting.
 
 
-Installation instructions:
+## ---- Installation instructions ----
 
-WOW requires the following software:  
-	    Python with following packages:
+WOW requires the following software -   
+	    Python with following packages:  
 			    &emsp; - numpy  
 			    &emsp; - scipy  
 			    &emsp; - matplotlib  
