@@ -30,9 +30,9 @@ Open WOW.py and update the three file paths listed:
 	&emsp; eq36_directory - This is the location of your EQ36 installation on your machine.  
 
 ### 4). Move Rcrust and EQ36 project and data files.   
-&emsp; - Move the WOW Rcrust project into your Rcrust project folder.  
-&emsp; - Move the Rcrust data files from the WOW folder to your Rcrust data file folder.  
-&emsp; - Move the EQ36 database files into the db folder of your EQ36 installation.   
+&emsp; - Move the WOW Rcrust project from the WOW/rock/Rcrust/Projects folder into your Rcrust project folder.  
+&emsp; - Move the Rcrust data files from the WOW/rock/Rcrust/data folder to your Rcrust data file folder.  
+&emsp; - Move the EQ36 database files from the WOW/aqueous/eq3_6 folder into the db folder of your EQ36 installation.   
 
 ### 5). Once all required software has been successfully installed, and all paths updated,  
 Open the "Demo" Jupyter notebook  
