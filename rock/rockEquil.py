@@ -5,10 +5,11 @@ from scipy.special import erf
 import platform
 import re
 
+import WOW
 
 ##### UPDATE THIS LINE
-rcrust_dir="/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/"
-mainDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
+mainDir=WOW.main_directory
+rcrust_dir=WOW.rcrust_directory
 
 ### other directories to execute RCrust and Perple_X
 codeDir = rcrust_dir+"code/"

@@ -9,10 +9,10 @@ import sys
 import os
 import argparse
 
+import WOW
 
 ##### UPDATE THIS LINE
-main_dir="/Users/samuelcourville/Documents/JPL/combinedModel/"
-
+main_dir=WOW.main_directory
 
 # Other file paths
 script_dir=main_dir+"plotting/"

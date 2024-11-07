@@ -6,19 +6,18 @@ import decimal
 import platform
 import matplotlib.pyplot as plt
 
-
+import WOW
 
 ##### UPDATE THIS LINE
-modDir="/Users/samuelcourville/Documents/JPL/combinedModel/"
-
-
+modDir=WOW.main_directory
+eq36Dir=WOW.eq36_directory
 
 
 # File locations
-eq36_dir=modDir+"aqueous/eq3_6/bin/"
+eq36_dir=eq36Dir+"bin/"
 eq3_ex=eq36_dir+"eq3nr"
 eq6_ex=eq36_dir+"eq6"
-eq36_db_dir=modDir+"aqueous/eq3_6/db/alphja39DBs/"
+eq36_db_dir=eq36Dir+"db/alphja39DBs/"
 eqFileLoc=modDir+"aqueous/eq36_files/"
 eq6master=modDir+"aqueous/eq36_files/master.6i"
 eq3master=modDir+"aqueous/eq36_files/master.3i"

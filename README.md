@@ -6,7 +6,7 @@ This numerical modeling framework simulates the thermal and compositional evolut
 
 ## ---- Installation instructions ----
 
-WOW requires the following software -   
+### 1). WOW requires the following software -   
 	    Python with following packages:  
 			    &emsp; - numpy  
 			    &emsp; - scipy  
@@ -20,16 +20,18 @@ WOW requires the following software -
 	Perple_X: https://www.perplex.ethz.ch/  
 	EQ3/6: https://github.com/LLNL/EQ3_6  
 
-Clone the WOW repository into a new directory  
+### 2). Clone the WOW repository into a new directory  
 
-Before the notebook will work, there are paths that need to be updated.   
-Update the commented paths in the following files:  
-	- lookupProps.py  
-	- Perple_X path  
-	- plotHelper.py  
-	- eq36.py  
+### 3). Before the notebook will work, there are file paths that need to be updated.   
+Open WOW.py and update the three file paths listed:  
+	&emsp; main_directory - This is the location of the WOW repository on your machine.  
+	&emsp; rcrust_directory - This is the location of your Rcrust installation on your machine.  
+	&emsp; eq36_directory - This is the location of your EQ36 installation on your machine.  
 
-move the Rcrust WOW project into your Rcrust project folder.   
+### 4). Move Rcrust and EQ36 project and data files.   
+&emsp; - Move the WOW Rcrust project into your Rcrust project folder.  
+&emsp; - Move the Rcrust data files from the WOW folder to your Rcrust data file folder.  
+&emsp; - Move the EQ36 database files into the db folder of your EQ36 installation.   
 
-Once all required software have been successfully installed, and all paths updated,  
-use the demonstration Jupiter notebook  
+### 5). Once all required software has been successfully installed, and all paths updated,  
+Open the "Demo" Jupyter notebook  

@@ -1,3 +1,11 @@
+######################################################################
+#Update these directories:
+main_directory = "/Users/samuelcourville/Documents/JPL/combinedModel/"
+rcrust_directory = "/Users/samuelcourville/Documents/JPL/Perplex/Rcrust/"
+eq36_directory = "/Users/samuelcourville/Documents/JPL/combinedModel/aqueous/eq3_6/"
+######################################################################
+
+
 # Required packages
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,11 +43,11 @@ class cellTypes:
 # Class for grid cells
 class gridCell:
     def __init__(self):
-        '''
+        """
         A grid cell is one radius increment of the full planet/moon/asteroid model. A full model is composed of many grid cells.
         A grid cell retains the same mass throughout the entire simulation, though its volume may change as its composition and density does.
         The grid cell contains all cell specific properties including composition and physical properties.
-        '''
+        """
 
         # Basic cell definition and states
         self.Celltype = 0     # See cellType class above
@@ -101,16 +109,16 @@ class gridCell:
         # This method is backwards. The latent heat should be addressed in concurance with equilibrium, not afterwards. But that's tough to do.
         
     def cell_decay(self,dtime):
-        '''
-           Updates the abundances of radioactive isotopes after decaying for a set interval of time, dtime. 
-        '''
+        """
+           Updates the abundances of radioactive isotopes after decaying for a set interval of time, dtime.
+        """
         for i in self.RIComp:
             self.RIComp[i]=Decay.calcDecayFrac(i,self.RIComp[i],dtime)
         
     def cell_heat(self,dtime):
-        '''
+        """
            Calculates the heat produced from decaying radioactive isotopes over the time interval, dtime. Updates the temperature of the cell.
-        '''
+        """
         DT = 0   # change in temperature
         for i in self.RIComp:
             DT = DT + Decay.calcHeatProd(i, self.RIComp[i], self.Cp, dtime)
@@ -125,14 +133,14 @@ class gridCell:
             self.Temp+=DT
         
     def cell_equilibrate(self,k,perplex,eq36,name,M_Cl):
-        '''
+        """
            Equilibrates the composition of the cell depending on its temperature and pressure.
            k: the current time step. Used for debugging I think? Not needed anymore.
            perplex: A boolean flag to decide whether to reequilibrate the mineral assemblage with perplex on this iteration or not.
            eq36: A boolean flag to decide whether to reequilibrate the fluid with eq36 on this iteration.
 
            returns doUpate: a flag to decide whether eq36 needs to be run on the next iteration or not (decided by whether perplex ran)
-        '''
+        """
         # Gets cell type
         ct = self.Celltype
         
@@ -251,9 +259,9 @@ class gridCell:
         return self.doUpdate, iceImp
  
     def cell_updateProp(self, ks, rhos, cps, crossRef):
-        '''
+        """
            Updates the physical and thermal properties of the cell, to be done after an equilibration step.
-        '''
+        """
         if True: #self.doUpdate:
             self.TCond=LookupProps.calcThermalCond(ks,crossRef,self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
             self.Cp= LookupProps.calcHeatCap(cps,crossRef,self.Press,self.Temp,self.RockPhases,self.RockPhaseDat,self.IceComp,self.AqComp,self.Mass,self.RockComp)
@@ -281,6 +289,9 @@ class gridCell:
         return
 
     def calc_porosity(self,rhos,crossRef):
+        """
+            Calculates porosity based on non-rock mass
+        """
         if self.Celltype==cellTypes.ROCK:
             rockDens = LookupProps.getRockDens(rhos, crossRef, self.Press, self.Temp, self.RockPhases, self.RockPhaseDat, self.Mass, self.RockComp)
             totalDens = LookupProps.calcDens(rhos, crossRef, self.Press, self.Temp, self.RockPhases, self.RockPhaseDat, self.IceComp, self.AqComp, self.Mass, self.RockComp)
@@ -291,6 +302,9 @@ class gridCell:
             return 0
 
     def collapse_porosity(self,force_por):
+        """
+            Calculates expected porosity based on pore closure pressure and updates cell's porosity.
+        """
         if self.Celltype==cellTypes.ROCK:
             nP = np.exp(-self.Press / 6e7) * 0.4
             if self.Porosity>nP:
@@ -302,12 +316,12 @@ class gridCell:
 
 
     def copy_cell(self,OldCell,time):
-        '''
+        """
            Used to copy the composition and properties of one cell to a new cell.
-           Inputs: 
+           Inputs:
               time: the current time step
               OldCell: the previous cell to be copied
-        '''
+        """
         self.Time=time
         self.ind=OldCell.ind
         self.Temp=OldCell.Temp
@@ -350,22 +364,22 @@ class gridCell:
         self.lastEnthalpy = OldCell.lastEnthalpy
         
     def calc_vol(self):
-        '''
-           Calculates the volume of the cell from the upper and lower radii of the cell. 
-        '''
+        """
+           Calculates the volume of the cell from the upper and lower radii of the cell.
+        """
         V1=4/3*np.pi*self.Top**3
         V2=4/3*np.pi*self.Bot**3
         self.Vol=V1-V2
     
     def calc_thickness(self,Bot):
-        '''
+        """
            Calculates the thickness of the cell from the mass, density, and radial extent of the bottom of the cell.
            Designed to be done in a loop over all grid cells, solving from the core to surface, passing the top radius of one cell
            to be the bottom radius of the next cell.
-           
+
            Input: Bot, the bottom of the cell, measured as distance from the core in meters.
            Output: Top, the top of the cell in meters.
-        '''
+        """
         self.Bot=Bot 
         V2=4/3*np.pi*self.Bot**3
         self.Vol=self.Mass/self.Dens
@@ -376,84 +390,84 @@ class gridCell:
 
     # Is this funciton still necessary?
     def calc_den_Mass(self):
-        '''
+        """
            Calculates the mass of the cell from the cells volume and density.
-        '''
+        """
         self.Mass=self.Vol*self.Dens
 
     # Is this function necesssary or a good idea? The mass of each cell should never change.
     def calc_Mass(self):
-        '''
+        """
            Calculates the mass of the cell from the sum of the masses of the rock, ice, and fluid components
-        '''
+        """
         self.Mass=self.getRockMass()+self.getIceMass()+self.getWaterMass()
 
     def getRockMass(self):
-        '''
+        """
            Adds up the masses of all the mineral components
-        '''
+        """
         sumR=0
         for i in self.RockComp:
             sumR=sumR+self.RockComp[i]
         return sumR
 
     def getAqMass(self):
-        '''
+        """
            Adds up the masses of all the aqueous components
-        '''
+        """
         sumR=0
         for i in self.AqComp:
             sumR=sumR+self.AqComp[i]
         return sumR
     
     def getIceMass(self):
-        '''
+        """
            Adds up the masses of all the ice components
-        '''
+        """
         sumI=0
         for i in self.IceComp:
             sumI=sumI+self.IceComp[i]
         return sumI
 
     def getWaterMass(self):
-        '''
+        """
            Adds up the masses of all the water components
-        '''
+        """
         sumW=0
         for i in self.AqComp:
             sumW=sumW+self.AqComp[i]
         return sumW
 
     def removeWaterMass(self):
-        '''
+        """
            Sets aqueous composition to empty, and returns existing composition
-        '''
+        """
         WaterDict=self.AqComp.copy()
         self.AqComp={}
         return WaterDict
     
     def removeRockMass(self):
-        '''
+        """
            Sets rock composition to empty, and returns existing composition
-        '''
+        """
         rockDict=self.RockComp.copy()
         self.RockComp={}
         return rockDict
 
     # Is this still necessary
     def replaceMass(self,wcomp,rcomp):
-        '''
+        """
            update the rock and water dictionaries with new compositions
-        '''
+        """
         self.RockComp=rcomp
         self.AqComp=wcomp
         self.reclassify()
      
     # This funciton should be improved. If its even necessary?
     def reclassify(self):
-        '''
+        """
            Checks the cell's composition and updates the cell type accordingly.
-        '''
+        """
         if self.getRockMass()==0 and not self.getWaterMass()==0: #not self.RockComp:
             self.Celltype=cellTypes.FLUID
         elif self.getRockMass()==0 and self.getWaterMass()==0: #not self.AqComp:
@@ -500,9 +514,9 @@ class Planet:
         self.mass_balance_check=dict()
 
     def timeStep(self,k):
-        '''
-           Backbone of modeling software. Calls funcitons to calculate thermal and chemical evolution of each cell.
-        '''
+        """
+           Backbone of modeling software. Calls functions to calculate thermal and chemical evolution of each cell.
+        """
         Neq36=0          # Flag to determine whether or not to call EQ36 for aqueous equilibration on this time step
         Yeq36=self.eq36  # Flag to determine whether or not to call EQ36 for aqueous equilibration on this time step 
         self.eq36=0      # Reset internal EQ36 flag
@@ -643,9 +657,9 @@ class Planet:
         self.check_mass_balance(k+1, "after copy cells")
     
     def transferHeat(self,k):
-        '''
-           Does a thermal heat conduction step, dynamically calculates what the next time step should be. 
-        '''
+        """
+           Does a thermal heat conduction step, dynamically calculates what the next time step should be.
+        """
         temp = np.array([self.grid[k,i].Temp for i in range(0,self.nr)])   # Grabs an array of the current temps of all the cells
         Cp =np.array([self.grid[k,i].Cp for i in range(0,self.nr)])        # Grabs an array of the current Cp of all cells
         Tcond = np.array([self.grid[k,i].TCond for i in range(0,self.nr)]) # Grabs an array of the current thermal conductivity of all cells
@@ -699,9 +713,9 @@ class Planet:
     
     
     def transportMaterial(self,time_step):
-        '''
+        """
            This function decides if material needs to move. E.g., if fluid is beneath rock, differentiate it.
-        '''
+        """
         topB=self.nr            # Top of the rock and ocean
         bottomB=0         # Bottom of the rock
         #iceBot=self.nr
@@ -727,9 +741,9 @@ class Planet:
 
 
     def copyRockComp(self,k,i,last_cell):
-        '''
+        """
            Interpolates rock composition from cells with Perplex equilibration to cells without.
-        '''
+        """
 
         if not self.grid[k, i].Celltype == cellTypes.ROCK:
             return
@@ -750,114 +764,41 @@ class Planet:
         for key in last_cell.AqComp:
             sumA += last_cell.AqComp[key]
 
-
-        #if False:
-        #    print(self.grid[k, i].Celltype)
-        #    print("current step")
-        #    print(self.grid[k,i].RockComp["H"]/self.grid[k,i].Mass)
-        #    print(self.grid[k, i].AqComp)
-        #    print(self.grid[k, i].IceComp)
-        #    print("last step")
-        #    print(last_cell.RockComp["H"]/last_cell.Mass)
-        #    print(last_cell.AqComp)
-        #    print(last_cell.IceComp)
-
         for key in self.grid[k, i].AqComp:
             self.grid[k, i].RockComp[key]+=self.grid[k, i].AqComp[key]
 
         self.grid[k, i].AqComp = {}
 
-        #r_mass_wt = last_cell.getRockMass() / last_cell.Mass
-        #for key in last_cell.RockComp:
-        #    self.grid[k, i].RockComp[key] = last_cell.RockComp[key] / sumC * self.grid[k, i].Mass * r_mass_wt
-        #for key in last_cell.AqComp:
-        #    self.grid[k, i].AqComp[key] = last_cell.AqComp[key] / sumA * self.grid[k, i].Mass * (1 - r_mass_wt)
         self.check_mass_balance(k, "after copy rock index: " + str(i))
 
-        """
-        # Find index of highest rock cell
-        rockInd = 0
-        for i in range(self.nr-1,-1,-1):
-            if self.grid[k,i].Celltype==cellTypes.ROCK:
-                rockInd=i
-                break
-        if rockInd>0:
-            rockInd=rockInd-1
-        # Find cells with data from Perplex
-        swapp=0
-        for i in range(0,self.nr):
-            if not len(self.grid[k,i].RockPhaseDat)==0:
-                swapp=1
-                break
-        # If there are cells with perplex data, continue.
-        if swapp==1:
-            lastStep=i
-            for i in range(0,rockInd):   # Loop over only the rock cells
-                if i%self.PressStep==0:  # Determine if the cell is on the perplex grid
-                    lastStep=i
-                else:                    # if not, copy data from the nearest cell below with perplex data
-                    self.grid[k,i].RockPhaseDat=self.grid[k,lastStep].RockPhaseDat.copy()
-                    self.grid[k,i].RockPhases=self.grid[k,lastStep].RockPhases
-                    #self.grid[k,i].OrgComp=self.grid[k,lastStep].OrgComp.copy()
-                    #self.grid[k,i].MaxOrgTemp=self.grid[k,lastStep].MaxOrgTemp
-                    self.grid[k,i].lastEquil=self.grid[k,lastStep].lastEquil
-                    self.grid[k, i].Porosity = self.grid[k, lastStep].Porosity
-                    
-                    # Rescale the copied rock composition to match the mass of the cell.
-                    sumC=0
-                    for key in self.grid[k,lastStep].RockComp:
-                        sumC += self.grid[k,lastStep].RockComp[key]
-                    sumA = 0
-                    for key in self.grid[k, lastStep].AqComp:
-                        sumA += self.grid[k, lastStep].AqComp[key]
-                    #print(sumC)
-                    #print(lastStep)
-                    #print("current step")
-                    #print(self.grid[k,i].RockComp["H"]/self.grid[k,i].Mass)
-                    #print(self.grid[k, i].AqComp)
-                    #print(self.grid[k, i].IceComp)
-                    #print("last step")
-                    #print(self.grid[k,lastStep].RockComp["H"]/self.grid[k,lastStep].Mass)
-                    #print(self.grid[k, lastStep].AqComp)
-                    #print(self.grid[k, lastStep].IceComp)
-                    self.grid[k, i].AqComp={}
-                    r_mass_wt=self.grid[k,lastStep].getRockMass()/self.grid[k,lastStep].Mass
-                    for key in self.grid[k,lastStep].RockComp:
-                        self.grid[k,i].RockComp[key]=self.grid[k,lastStep].RockComp[key]/sumC*self.grid[k,i].Mass*r_mass_wt
-                    for key in self.grid[k, lastStep].AqComp:
-                        self.grid[k,i].AqComp[key]=self.grid[k,lastStep].AqComp[key]/sumA*self.grid[k,i].Mass*(1-r_mass_wt)
-                    self.check_mass_balance(k, "after copy rock index: "+str(i))
-        """
 
     def updateBulk(self,time_step):
-        '''
+        """
            Update the bulk properties of the model
-        '''
+        """
         bot=0
         for i in range(0,self.nr):
             bot=self.grid[time_step,i].calc_thickness(bot)  # update the radii of the cells
             self.radii[i]=self.grid[time_step,i].Bot
             self.grid[time_step,i].calc_vol()               # update the volume of each cell
-            #if i==48:
-            #    print(time_step)
-            #    print(self.grid[time_step,i].Mass)
             self.grid[time_step,i].calc_Mass()              # update the mass of each cell
-            #if i==48:
-            #    print(self.grid[time_step, i].Mass)
         self.Radius = self.grid[time_step, -1].Top
         self.calc_press(time_step)                          # update the pressure in each cell
     
 
     def get_aq_mass(self,t_step):
+        """
+            Return mass of all fluid in all cells
+        """
         aq_mass=0
         for i in range(0,self.nr):
             aq_mass+=self.grid[t_step,i].getAqMass()
         return aq_mass
 
     def get_mass_balance(self,t_step):
-        '''
+        """
             Adds up the mass of all elements in all the grid cells.
-        '''
+        """
         el_dict={}
         for i in range(0,self.nr):
             for j in self.grid[t_step,i].RockComp:
@@ -868,9 +809,9 @@ class Planet:
                 self.add_el_to_dict(el_dict, j,self.grid[t_step,i].IceComp[j])
         return el_dict
     def check_mass_balance(self,t_step,message):
-        '''
-            Checks if mass of elements adds up right
-        '''
+        """
+            Checks if mass of elements adds up correctly
+        """
         current_els=self.get_mass_balance(t_step)
         for i in current_els:
             if abs(current_els[i]-self.mass_balance_check[i])>1e20: #reset 1e10
@@ -883,6 +824,9 @@ class Planet:
 
 
     def add_el_to_dict(self,d,el,val):
+        """
+            helper to add element to dictionary whether it's in the dictionary already or not
+        """
         if el in d:
             d[el]+=val
         else:
@@ -895,10 +839,16 @@ class Planet:
    
  
     def runModel(self):
-        '''
-           Run timestep function until end time or max time step is reached
-           TODO: Write better doc string
-        '''
+        """
+            After initializing the simulation grid and composition of a WOW.planet() object using the initialize_comp()
+            function, execute runModel() to simulate the bodies evolution.
+            This function runs the timeStep() function until the end time is reached or the max number of time steps
+            have been taken.
+           Inputs: none
+           Outputs: none
+            Analyze the outputs of the simulation by using the built-in plotting functions or interrogating the object's
+            properties.
+        """
         i=0
         while self.times[-1] < self.endTime and i<self.nt-1: #i in range(0,nt-1):
             self.timeStep(i)
@@ -908,10 +858,22 @@ class Planet:
     
 
     def initialize_comp(self,name,initIceComp,initRockComp, initRIComp, initTemp, initRho, initK, initCp):
-        '''
-           Initializes the composition of the model
-           TODO: Write better doc string
-        '''
+        """
+           Initializes the composition of the model.
+           Inputs:
+            name - name of the model (string)
+            initIceComp - elemental abundances in icy component (dictionary: key is an element string, e.g., "Al", and
+                          the value is that element's mass fraction).
+            initRockComp - elemental abundances in rocky component (dictionary: key is an element string, e.g., "Al",
+                           and the value is that element's mass fraction)
+                    NOTE: all the items of the initIceComp and initRockComp dictionaries, together, must sum to 1.0.
+            initRIComp - abundances of radioisotopes (dictionary: key is an isotope string [see list in decay.py], and
+                         the value is that isotopes abundance in mole fraction)
+            initTemp - Initial temperature of the body, homogeneous throughout, and also the surface boundary condition
+            initRho - Initial density of the body's interior. Gets updated after the first composition evaluation step.
+            initK - Initial thermal conductivity of the body's interior.
+            initCP - Initial heat capacity of the body's interior.
+        """
         self.name=name
         self.grid[0,0].IceComp=initIceComp
         self.grid[0,0].RockComp=initRockComp
@@ -954,9 +916,15 @@ class Planet:
         if "IOM" not in self.mass_balance_check:
             self.mass_balance_check["IOM"]=0
 
-    ##### Plotting functions (ADD DOC STRINGS!)
+    ##### Plotting functions
 
     def plotAttribute(self,att,tit):
+        """
+            Plots an attribute of a WOW model as it changes over time and radius. Makes a 2D, filled contour plot.
+            inputs:
+             att - The attribute to be plotted (String. Must be a non-dictionary attribute in the WOW.Planet class)
+             tit - Title of the plot (String)
+        """
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros((self.nt,self.nr))
         for i in range(self.nr):
@@ -995,6 +963,12 @@ class Planet:
         
 
     def plotTemp(self,att,tit):
+        """
+            Plots the temperature of the body over time
+            inputs:
+             att - attribute to plot (use "Temp")
+             tit - title of the plot (String)
+        """
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros((self.nt,self.nr))
         for i in range(self.nr):
@@ -1043,6 +1017,15 @@ class Planet:
         return f
         
     def plotAttributeLine(self,att,tit,radius,unit=1):
+        """
+            Plots an attribute of a WOW model at a single position in the interior as it changes over time.
+            A 1D Line plot.
+            inputs:
+             att -attribute to plot (String. Must be a non-dictionary attribute in the WOW.Planet class)
+             tit - title of the plot (String)
+             radius - The radius index at which to plot the attribute (number between 0 and nr)
+             unit - A multiplier to adjust the values of the attribute
+        """
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros(self.nt)
         for j in range(self.nt):
@@ -1055,6 +1038,15 @@ class Planet:
         return f
     
     def plotDictAttribute(self,att,key,tit,unit=1):
+        """
+            Plots an attribute of a WOW model as it changes over time and radius. Makes a 2D, filled contour plot.
+            For dictionary attributes.
+            inputs:
+             att - attribute to plot (String. Must be a dictionary attribute in the WOW.Planet class)
+             key - the key of the dictionary that is wished to be plotted (String)
+             tit - title of the plot (String)
+             unit - A multiplier to adjust the values of the attribute
+        """
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros((self.nt,self.nr))
         for i in range(self.nr):
@@ -1088,6 +1080,18 @@ class Planet:
         return f
         
     def plotDictAttributeMassScaled(self,att,key,tit,vmin,vmax,unit=1):
+        """
+            Plots an attribute of a WOW model as it changes over time and radius. Makes a 2D, filled contour plot.
+            Scales the result by the mass of the cell. Useful for looking at abundance fractions.
+            For dictionary attributes.
+            inputs:
+             att - attribute to plot (String. Must be a dictionary attribute in the WOW.gridCell class)
+             key - the key of the dictionary that is wished to be plotted (String)
+             tit - title of the plot (String)
+             vmin - minimum value to be plotted
+             vmax - maximum value to be plotted
+             unit - A multiplier to adjust the values of the attribute
+        """
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros((self.nt,self.nr))
         for i in range(self.nr):
@@ -1105,6 +1109,17 @@ class Planet:
         return f
     
     def plotDictAttributeLine(self,att,key,tit,radius,unit=1):
+        """
+            Plots an attribute of a WOW model at a single position in the interior as it changes over time.
+            A 1D Line plot.
+            For dictionary attributes.
+            inputs:
+             att - attribute to plot (String. Must be a dictionary attribute in the WOW.gridCell class)
+             key - the key of the dictionary that is wished to be plotted (String)
+             tit - title of the plot (String)
+             radius - The radius index at which to plot the attribute (number between 0 and nr)
+             unit - A multiplier to adjust the values of the attribute
+        """
         matplotlib.rcParams.update({'font.size': 22})
         data = np.zeros(self.nt)
         for j in range(self.nt):
@@ -1120,6 +1135,18 @@ class Planet:
         return f,data
 
     def multiplotDictAttributeLine(self,att,keys,tit,radius,unit=1):
+        """
+            Plots multiple attributes within a dictionary attribute of a WOW model at a single position in the interior
+            as they change over time.
+            A 1D Line plot.
+            For multiple keys in a dictionary attribute.
+            inputs:
+             att - attribute to plot (String. Must be a dictionary attribute in the WOW.gridCell class)
+             key - the keys of the dictionary that are wished to be plotted (list of strings)
+             tit - title of the plot (String)
+             radius - The radius index at which to plot the attribute (number between 0 and nr)
+             unit - A multiplier to adjust the values of the attribute
+        """
         matplotlib.rcParams.update({'font.size': 22})
         f = plt.figure(figsize=(10, 6))
         for key in keys:
@@ -1138,6 +1165,13 @@ class Planet:
 
 
     def plotSimplePhases(self,radius,minorPhases="test"):
+        """
+            Makes a stackplot/sandplot of the mineral phase assemblage at a given depth in the interior of a model.
+            Lumps all minerals into 10 categories: hydrous silicates, anhydrous silicates, graphite, quartz, carbonates,
+            iron/iron-oxides, sulfide, sulfates, Al-oxides, and other
+            Inputs:
+            radius - The radius index at which to plot the attribute (number between 0 and nr)
+        """
         pP = dict()
 
         if minorPhases=="test":
@@ -1241,12 +1275,6 @@ class Planet:
                 if not i == "IOM":
                     pP[i][j] = pP[i][j] / sumM[j] * (100 - IOMp)
 
-        # x_values = list(pP.keys())
-        # y_values_list = list(pP.values())
-
-        # print(pP.values())
-        # print(pP.keys())
-
         color_map = []
         for i in pP:
             if i in col_dict:
@@ -1256,22 +1284,24 @@ class Planet:
 
         f = plt.figure(figsize=(12, 6))
         plt.stackplot(self.times / Decay.YR / 10 ** 6, pP.values(), labels=pP.keys(), colors=color_map)
-        # plt.stackplot(x_values, y_values_list, labels=list(pP.keys()))
         plt.tight_layout(rect=[0, 0, 0.75, 1])
-        # if LogScale==1:
-        #    plt.xscale("log")
         plt.xlabel('Time (Myr)')
         plt.ylabel('Wt %')
-        plt.title('Phase assemblage at %0.2f kms deep' % (self.radii[-1] - self.radii[radius]))
+        plt.title('Phase assemblage at %0.2f m deep' % (self.radii[-1] - self.radii[radius]))
         plt.tick_params(labelright=True, right=True)
         plt.ylim([0, 100])
         plt.legend(bbox_to_anchor=(1.6, 1.0), loc='upper right',
                    ncol=1, fancybox=True, shadow=True)
-        # plt.show()
         return f
 
    
     def plotPhaseAssemblage(self,radius, minorPhases="test"):
+        """
+            Makes a stackplot/sandplot of the mineral phase assemblage at a given depth in the interior of a model.
+            Inputs:
+            radius - The radius index at which to plot the attribute (number between 0 and nr)
+            minorPhases - list of minerals to be lumped together as one "minor phase" listing (list of strings)
+        """
         pP=dict()
         
         if minorPhases=="test":
@@ -1340,7 +1370,7 @@ class Planet:
                   "any":"su: sulfates",
                   "naph":"phl: phlogopite",
                   "cor":"cor: corundum",
-                  "Mag":"cb: carbonates",#"mag: magnetite",
+                  "Mag":"cb: carbonates",
                   "Gt":"Gt: garnet",
                   "iron":"Iron"}
 
@@ -1384,15 +1414,6 @@ class Planet:
                 if not i=="IOM":
                     pP[i][j]=pP[i][j]/sumM[j]*(100-IOMp)
 
-                
-        #x_values = list(pP.keys())
-        #y_values_list = list(pP.values())
-   
-        #print(pP.values())
-        #print(pP.keys())
-
-
-
         color_map=[]
         for i in pP:
             if i in col_dict:
@@ -1402,24 +1423,23 @@ class Planet:
        
 
         f=plt.figure(figsize=(12,6))
-        plt.stackplot(self.times/Decay.YR/10**6,pP.values(),labels=pP.keys(),colors = color_map) 
-        #plt.stackplot(x_values, y_values_list, labels=list(pP.keys()))
+        plt.stackplot(self.times/Decay.YR/10**6,pP.values(),labels=pP.keys(),colors = color_map)
         plt.tight_layout(rect=[0, 0, 0.75, 1])
-        #if LogScale==1:
-        #    plt.xscale("log")
         plt.xlabel('Time (Myr)')
         plt.ylabel('Wt %')
-        plt.title('Phase assemblage at %0.2f kms deep'%(self.radii[-1]-self.radii[radius]))
+        plt.title('Phase assemblage at %0.2f m deep'%(self.radii[-1]-self.radii[radius]))
         plt.tick_params(labelright=True, right=True)
         plt.ylim([0,100])
         plt.legend(bbox_to_anchor=(1.6, 1.0), loc='upper right',
                    ncol=1, fancybox=True, shadow=True)
-        #plt.show()
         return f
 
 
 
     def calc_press(self,time_index):
+        """
+            Calculates the pressure in the interior
+        """
         self.Mass=self.calc_mass(time_index)
         M=self.Mass
         dP=0
@@ -1432,14 +1452,12 @@ class Planet:
             dens=self.grid[time_index][i].Dens
             dP = dP+dens*g*dh
             self.grid[time_index][i].Press=dP
-            #print(R)
-            #print(M)
-            #print(g)
-            #print(dh)
-            #print(dens)
         self.grid[time_index][0].Press=dP
 
     def calc_mass(self,time_index):
+        """
+            sums mass of all cells
+        """
         sumM=0
         for i in range(0,self.nr):
             sumM = sumM+self.grid[time_index][i].Mass
@@ -1451,9 +1469,18 @@ class Planet:
 
 
 def calcOriginAbundance(abund,el):
+    """
+        Calculates the original abundance of a radioactive isotope based on its current present-day abundance
+        inputs:
+        abund - mole fraction of radioisotope at present day
+        el - name of element (string, one of the isotopes in decay.py)
+    """
     return Decay.calcOriginAbund(abund,el)
 
 def molMass2elMass(molDic):
+    """
+        Convert mole fraction to elemental mass fraction.
+    """
     elDic={}
     for i in molDic:
         f = Formula(i)

@@ -1,9 +1,10 @@
 import csv
 import numpy as np
 
-##### UPDATE THIS LINE
-main_dir="/Users/samuelcourville/Documents/JPL/combinedModel/"
+import WOW
 
+##### UPDATE THIS LINE
+main_dir=WOW.main_directory
 
 # Other paths
 lookup_dir=main_dir+"tables/perplex_lookup.csv"
@@ -13,38 +14,38 @@ rho_dir=main_dir+"tables/rho.csv"
 
 
 class LookupProps:
-    '''
+    """
         Class to contain functions related to grabbing data from thermal and physical property tables.
-    '''
+    """
     def loadk():
-        '''
+        """
             Load file with thermal conductivity values
-        '''
+        """
         coDict=LookupProps.read_Ncol_csv_to_dict(k_dir)
         return coDict
     def loadrho():
-        '''
+        """
             Load file with density values
-        '''
+        """
         coDict = LookupProps.read_Ncol_csv_to_dict(rho_dir)
         return coDict
     def loadcp():
-        '''
+        """
             load file with heat capacity values
-        '''
+        """
         coDict = LookupProps.read_Ncol_csv_to_dict(cp_dir)
         return coDict
     def loadperp():
-        '''
+        """
             Load file with cross references between Perple_X minerals and materials in other property tables
-        '''
+        """
         cross_dict = LookupProps.read_2col_csv_to_dict(lookup_dir)
         return cross_dict
 
     def calcThermalCond(ktab,crosstab,P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
-        '''
+        """
             Calculate thermal conductivity from table coefficients and P,T
-        '''
+        """
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
@@ -80,9 +81,9 @@ class LookupProps:
 
 
     def calcHeatCap(cptab,crosstab,P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
-        '''
+        """
             Calculate heat capacity from table coefficients and P,T
-        '''
+        """
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
@@ -115,9 +116,9 @@ class LookupProps:
         return cp
 
     def getRockDens(rhotab, crosstab, P,T,RockPhases,RockPhaseDat,M,rockComp):
-        '''
+        """
             Calculate density from table coefficients and P,T
-        '''
+        """
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
@@ -148,9 +149,9 @@ class LookupProps:
         return rho
 
     def calcDens(rhotab, crosstab, P,T,RockPhases,RockPhaseDat,IceComp,AqComp,M,rockComp):
-        '''
+        """
             Calculate density from table coefficients and P,T
-        '''
+        """
         valsR_pre=[]
         wtsR_pre=[]
         if len(RockPhases) == 0:
@@ -200,23 +201,23 @@ class LookupProps:
 
 
     def HeatCapFunc(C, P, T):
-        '''
+        """
             Function to calculate heat capacity from coefficients
-        '''
+        """
         val = C[0]+C[1]*T+C[2]*T**2+C[3]*T**3+C[4]*T**-2
         return val
 
     def TCondFunc(C, P, T):
-        '''
+        """
             Calculate thermal conductivity from table coefficients and P,T
-        '''
+        """
         val = C[0]+C[1]/T+C[2]*T
         return val
 
     def rhoFunc(C, P, T):
-        '''
+        """
             Calculate thermal conductivity from table coefficients and P,T
-        '''
+        """
         val = C[0]
         return val
 
@@ -224,18 +225,18 @@ class LookupProps:
 
     
     def avgProps(vals,wts):
-        '''
+        """
             Weighted average of property values
-        '''
+        """
         avgVal=0
         for i in range(0,len(vals)):
             avgVal=avgVal+wts[i]*vals[i]
         return avgVal
 
     def crossRef(spec,cross_dict):
-        '''
+        """
             Cross reference perple_x minerals with other table entities.
-        '''
+        """
         spec = spec[:-3] # removes '_rs' from perplex name
         if spec in cross_dict:
             key = cross_dict[spec]
@@ -245,27 +246,27 @@ class LookupProps:
         return key
 
     def getTcondCoeffs(key,coDict):
-        '''
+        """
             Get k coefficients for specific material
-        '''
+        """
         return coDict[key]
 
     def getCpCoeffs(key,coDict):
-        '''
+        """
             Get Cp coefficients for specific material
-        '''
+        """
         return coDict[key]
 
     def getRhoCoeffs(key,coDict):
-        '''
+        """
             Get density coefficients for specific material
-        '''
+        """
         return coDict[key]
 
     def read_2col_csv_to_dict(file_path):
-        '''
+        """
             Read property csv file into dictionary
-        '''
+        """
         result_dict = {}
         with open(file_path, 'r') as file:
             csv_reader = csv.reader(file)
@@ -276,9 +277,9 @@ class LookupProps:
         return result_dict
 
     def read_Ncol_csv_to_dict(file_path):
-        '''
+        """
             read property csv file into dictionary
-        '''
+        """
         result_dict = {}
         first_row = True  # Flag to track the first row
         with open(file_path, 'r') as file:
