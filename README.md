@@ -6,7 +6,8 @@ This numerical modeling framework simulates the thermal and compositional evolut
 
 ## ---- Installation instructions ----
 
-### 1). WOW requires the following software -   
+### 1). WOW requires the following software
+  
 	    Python with following packages:  
 			    &emsp; - numpy  
 			    &emsp; - scipy  
