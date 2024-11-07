@@ -8,18 +8,18 @@ This numerical modeling framework simulates the thermal and compositional evolut
 
 ### 1). WOW requires the following software
   
-	    Python with following packages:  
-			    &emsp; - numpy  
-			    &emsp; - scipy  
-			    &emsp; - matplotlib  
-			    &emsp; - rpy2  
-			    &emsp; - pandas  
-			    &emsp; - molmass  
-			    &emsp; - Jupyter notebook: https://jupyter.org/install  
-	R: https://www.r-project.org/  
-	Rcrust: https://www.sun.ac.za/english/faculty/science/earthsciences/rcrust  
-	Perple_X: https://www.perplex.ethz.ch/  
-	EQ3/6: https://github.com/LLNL/EQ3_6  
+Python with following packages:  
+	&emsp; - numpy  
+	&emsp; - scipy  
+	&emsp; - matplotlib  
+	&emsp; - rpy2  
+	&emsp; - pandas  
+	&emsp; - molmass  
+	&emsp; - Jupyter notebook: https://jupyter.org/install  
+R: https://www.r-project.org/  
+Rcrust: https://www.sun.ac.za/english/faculty/science/earthsciences/rcrust  
+Perple_X: https://www.perplex.ethz.ch/  
+EQ3/6: https://github.com/LLNL/EQ3_6  
 
 ### 2). Clone the WOW repository into a new directory  
 
