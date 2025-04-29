@@ -104,6 +104,7 @@ class gridCell:
         self.HtoAdd=0         # Extra heat to add (K)
         self.doUpdate=0       # Flag to decide whether or not to reequilibrate aqueous component
 
+        self.onlyonce = True
         # Currently, when thermodynamic equilibrium predicts a change in composition, it saves the ammount of heat required, or produced,
         # into the latent heat variable. Temperature of the cell cannot be increased until a latent heat deficit is accounted for. 
         # This method is backwards. The latent heat should be addressed in concurance with equilibrium, not afterwards. But that's tough to do.
@@ -205,7 +206,7 @@ class gridCell:
                     self.Aqcomp={}
                     self.IceComp=newIceComp
                     self.latentFreeze = heat2
-                if not frozen and self.Temp<700:
+                if not frozen and self.Temp<700: # and False: Add no AQ flag
                     newAq,newAct,newpH,newpH2,newGas,newMin = aqStep.callAqRockEquil(self.RockComp, self.AqComp, self.Press, self.Temp,WR,name,self.ind,M_Cl)
                     self.AqSpec = newAq
                     self.AqAct = newAct
@@ -213,7 +214,8 @@ class gridCell:
                     self.pH2 = newpH2
                     self.AqGas = newGas
                     self.AqMin = newMin
-            if perplex and self.Temp-self.lastEquil>self.TempStep:
+            if perplex and self.Temp-self.lastEquil>self.TempStep and self.onlyonce:
+                self.onlyonce=True
                 tempRC,tempRPD,tempRP,E,NOT,vols,success=rockEquil(self.RockComp, self.AqComp, self.Press, self.Temp, self.MaxOrgTemp)
                 if success:
                     self.MaxOrgTemp=NOT
@@ -362,6 +364,7 @@ class gridCell:
         self.latentHeat=OldCell.latentHeat
         self.latentFreeze = OldCell.latentFreeze
         self.lastEnthalpy = OldCell.lastEnthalpy
+        self.onlyonce = OldCell.onlyonce
         
     def calc_vol(self):
         """
@@ -521,9 +524,9 @@ class Planet:
         Yeq36=self.eq36  # Flag to determine whether or not to call EQ36 for aqueous equilibration on this time step 
         self.eq36=0      # Reset internal EQ36 flag
         
-        if k%10==0:     # Print a statement every 10 time steps so the user can be sure the program is running.
+        if k%1000==0:     # Print a statement every 10 time steps so the user can be sure the program is running.
             print("Step "+str(k)+" out of "+str(self.nt))
-        self.check_mass_balance(k,"function start")
+        #self.check_mass_balance(k,"function start")
 
         # Chlorine tracker. Eventually remove by adding to Perplex
         init_Cl = 0.0141/100
@@ -588,7 +591,7 @@ class Planet:
                 print(iceImp)
             self.grid[k,i].AqComp, iceImp = matTrans.AddImpurities(self.grid[k,ind_ocean].AqComp, iceImp)
 
-        self.check_mass_balance(k, "after add impurities to "+str(ind_ocean))
+        #self.check_mass_balance(k, "after add impurities to "+str(ind_ocean))
 
 
         # For all cells that aren't on the perplex equilibration grid, copy values from the nearest equilibration step.
@@ -613,7 +616,7 @@ class Planet:
             #self.grid[k, i].Porosity = 1.0 - self.grid[k, i].getRockVolume() / self.grid[k, i].Vol
             #if updateNeeded:
             #    self.grid[k,i].cell_updateProp()  # Is this necessary? Why?
-        self.check_mass_balance(k, "after extract")
+        #self.check_mass_balance(k, "after extract")
 
         # calc new porosity
         temp_por=0
@@ -624,13 +627,14 @@ class Planet:
             else:
                 self.grid[k, i].collapse_porosity(temp_por)
 
-        self.check_mass_balance(k, "after porosity collapse")
+        #self.check_mass_balance(k, "after porosity collapse")
 
 
         # Differentiate the body if necessary (e.g., water from rock)
         #print(k)
-        self.transportMaterial(k)
-        self.check_mass_balance(k, "after transport")
+        if self.checkNotFrozen(k):
+            self.transportMaterial(k)
+        #self.check_mass_balance(k, "after transport")
 
         #### UPDATE CELL PROPERTIES
         # Update cell properties after differentiation
@@ -639,7 +643,7 @@ class Planet:
                 self.grid[k,i].cell_updateProp(self.kTable,self.rhoTable,self.cpTable,self.perpTable)
                 self.grid[k, i].reclassify()
 
-        self.check_mass_balance(k, "after update props")
+        #self.check_mass_balance(k, "after update props")
         #### TRANSFER HEAT
         # Do a thermal heat conduction step
         self.transferHeat(k)
@@ -648,14 +652,26 @@ class Planet:
         # Update the bulk properties of the full grid
         self.updateBulk(k)
 
-        self.check_mass_balance(k, "after temp and bulk")
+        #self.check_mass_balance(k, "after temp and bulk")
 
         # Copy cells into next time step
         for i in range(0,self.nr):
             self.grid[k+1,i].copy_cell(self.grid[k,i],self.times[k+1])
 
-        self.check_mass_balance(k+1, "after copy cells")
-    
+        #self.check_mass_balance(k+1, "after copy cells")
+
+
+    def checkNotFrozen(self,k):
+        for i in range(0,self.nr):
+            if self.grid[k,i].Celltype==2: # change to activate once body has differentiated
+                return True
+            if self.grid[k,i].Celltype==4:
+                for j in range(0,self.nr):
+                    if j>1:
+                        if self.grid[k,j].Celltype==0 and self.grid[k,j-1].Celltype==3:
+                            return False
+        return True
+
     def transferHeat(self,k):
         """
            Does a thermal heat conduction step, dynamically calculates what the next time step should be.
@@ -769,7 +785,7 @@ class Planet:
 
         self.grid[k, i].AqComp = {}
 
-        self.check_mass_balance(k, "after copy rock index: " + str(i))
+        #self.check_mass_balance(k, "after copy rock index: " + str(i))
 
 
     def updateBulk(self,time_step):
@@ -954,7 +970,7 @@ class Planet:
         #for label in clabels:
         #    label.set_rotation(-90)
 
-        CS3 = plt.contourf(xi,yi,zi, 500) #,vmin=vmin,vmax=vmax,cmap=JCmap) # Fix to use correct radii
+        CS3 = plt.contourf(xi,yi,zi, 25) #,vmin=vmin,vmax=vmax,cmap=JCmap) # Fix to use correct radii
         plt.colorbar()
         plt.xlabel('Time (Myr)')
         plt.ylabel('Radius (km)')
@@ -1008,7 +1024,7 @@ class Planet:
             label.set_rotation(-90)
 
         CS2 = plt.contour( xi,yi,zi, levels=minor_levels, linewidths=1.0, colors='white', linestyles='dashed' )
-        CS3 = plt.contourf(xi,yi,zi, 500,vmin=vmin,vmax=vmax,cmap=JCmap) # Fix to use correct radii
+        CS3 = plt.contourf(xi,yi,zi, 50,vmin=vmin,vmax=vmax,cmap=JCmap) # Fix to use correct radii
         plt.colorbar()
         #plt.contour(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data),15, colors='k')
         plt.xlabel('Time (Myr)')
@@ -1071,7 +1087,7 @@ class Planet:
 
 
         f=plt.figure(figsize=(10,6))
-        plt.contourf(xi,yi,zi*unit,100) # Fix to use correct radii
+        plt.contourf(xi,yi,zi*unit,20) # Fix to use correct radii
         plt.colorbar()
         plt.contour(xi,yi,zi*unit,15, colors='k')
         plt.xlabel('Time (Myr)')
@@ -1100,7 +1116,7 @@ class Planet:
                 if key in tempItem:
                     data[j][i]=tempItem[key]/self.grid[j][i].Mass
         f=plt.figure(figsize=(10,6))
-        plt.contourf(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data)*unit,100, vmin=vmin,vmax=vmax) # Fix to use correct radii
+        plt.contourf(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data)*unit,20, vmin=vmin,vmax=vmax) # Fix to use correct radii
         plt.colorbar()
         plt.contour(self.times/Decay.YR/10**6,self.radii[0:-1]/1000,np.transpose(data)*unit,15, colors='k')
         plt.xlabel('Time (Myr)')
